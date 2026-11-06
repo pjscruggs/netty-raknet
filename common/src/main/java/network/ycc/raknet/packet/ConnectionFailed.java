@@ -13,18 +13,18 @@ public class ConnectionFailed extends SimplePacket implements Packet {
     public ConnectionFailed() {
     }
 
-    public ConnectionFailed(RakNet.Magic magic) {
+    public ConnectionFailed(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         magic.write(buf);
         buf.writeLong(code);
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         code = buf.readLong();
     }
@@ -33,7 +33,7 @@ public class ConnectionFailed extends SimplePacket implements Packet {
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -41,7 +41,7 @@ public class ConnectionFailed extends SimplePacket implements Packet {
         return code;
     }
 
-    public void setCode(long code) {
+    public void setCode(final long code) {
         this.code = code;
     }
 

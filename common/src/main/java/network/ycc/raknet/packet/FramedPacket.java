@@ -26,14 +26,14 @@ public interface FramedPacket extends Packet {
         public final boolean isSequenced;
         public final boolean isAckd;
 
-        Reliability(boolean isReliable, boolean isOrdered, boolean isSequenced, boolean isAckd) {
+        Reliability(final boolean isReliable, final boolean isOrdered, final boolean isSequenced, final boolean isAckd) {
             this.isReliable = isReliable;
             this.isOrdered = isOrdered;
             this.isSequenced = isSequenced;
             this.isAckd = isAckd;
         }
 
-        public static Reliability get(int code) {
+        public static Reliability get(final int code) {
             assert code >= 0 && code < values().length;
             return values()[code];
         }

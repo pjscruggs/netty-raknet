@@ -10,12 +10,12 @@ public class ConnectionReply1 extends AbstractConnectionReply implements Packet 
     public ConnectionReply1() {
     }
 
-    public ConnectionReply1(RakNet.Magic magic, int mtu, long serverId) {
+    public ConnectionReply1(final RakNet.Magic magic, final int mtu, final long serverId) {
         super(magic, mtu, serverId);
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         magic.write(buf);
         buf.writeLong(serverId);
         buf.writeBoolean(NEEDS_SECURITY);
@@ -23,7 +23,7 @@ public class ConnectionReply1 extends AbstractConnectionReply implements Packet 
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();
         if (buf.readBoolean()) {

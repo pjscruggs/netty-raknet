@@ -18,7 +18,7 @@ public class FrameSplitter extends MessageToMessageEncoder<Frame> {
     protected int nextReliableId = 0;
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, Frame packet, List<Object> list) {
+    protected void encode(final ChannelHandlerContext ctx, final Frame packet, final List<Object> list) {
         final RakNet.Config config = RakNet.config(ctx);
         final int maxSize = config.getMTU() - 2 * (FrameSet.HEADER_SIZE + Frame.HEADER_SIZE);
         if (packet.getRoughPacketSize() > maxSize) {

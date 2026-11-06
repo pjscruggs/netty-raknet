@@ -14,21 +14,21 @@ public class ConnectionRequest1 extends SimplePacket implements Packet {
     public ConnectionRequest1() {
     }
 
-    public ConnectionRequest1(RakNet.Magic magic, int protocolVersion, int mtu) {
+    public ConnectionRequest1(final RakNet.Magic magic, final int protocolVersion, final int mtu) {
         this.magic = magic;
         this.protocolVersion = protocolVersion;
         this.mtu = mtu;
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         magic.write(buf);
         buf.writeByte(protocolVersion);
         buf.writeZero(mtu - buf.readableBytes());
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         mtu = buf.readableBytes();
         magic = DefaultMagic.decode(buf);
         protocolVersion = buf.readByte();
@@ -45,7 +45,7 @@ public class ConnectionRequest1 extends SimplePacket implements Packet {
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -53,7 +53,7 @@ public class ConnectionRequest1 extends SimplePacket implements Packet {
         return protocolVersion;
     }
 
-    public void setProtocolVersion(int protocolVersion) {
+    public void setProtocolVersion(final int protocolVersion) {
         this.protocolVersion = protocolVersion;
     }
 
@@ -61,7 +61,7 @@ public class ConnectionRequest1 extends SimplePacket implements Packet {
         return mtu;
     }
 
-    public void setMtu(int mtu) {
+    public void setMtu(final int mtu) {
         this.mtu = mtu;
     }
 

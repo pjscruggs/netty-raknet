@@ -11,21 +11,21 @@ public class ConnectionRequest extends SimpleFramedPacket implements Packet.Clie
         reliability = Reliability.RELIABLE;
     }
 
-    public ConnectionRequest(long clientId) {
+    public ConnectionRequest(final long clientId) {
         this();
         this.clientId = clientId;
         this.timestamp = System.nanoTime();
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeLong(clientId);
         buf.writeLong(timestamp);
         buf.writeBoolean(false);
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         clientId = buf.readLong(); //client id
         timestamp = buf.readLong();
         buf.readBoolean(); //use security
@@ -36,7 +36,7 @@ public class ConnectionRequest extends SimpleFramedPacket implements Packet.Clie
         return clientId;
     }
 
-    public void setClientId(long clientId) {
+    public void setClientId(final long clientId) {
         this.clientId = clientId;
     }
 
@@ -44,7 +44,7 @@ public class ConnectionRequest extends SimpleFramedPacket implements Packet.Clie
         return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    public void setTimestamp(final long timestamp) {
         this.timestamp = timestamp;
     }
 

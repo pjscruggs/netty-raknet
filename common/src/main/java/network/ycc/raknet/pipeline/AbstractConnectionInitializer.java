@@ -23,7 +23,7 @@ public abstract class AbstractConnectionInitializer extends SimpleChannelInbound
     protected ScheduledFuture<?> sendTimer = null;
     protected ScheduledFuture<?> connectTimer = null;
 
-    public AbstractConnectionInitializer(ChannelPromise connectPromise) {
+    public AbstractConnectionInitializer(final ChannelPromise connectPromise) {
         this.connectPromise = connectPromise;
     }
 
@@ -32,7 +32,7 @@ public abstract class AbstractConnectionInitializer extends SimpleChannelInbound
     protected abstract void removeHandler(ChannelHandlerContext ctx);
 
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
+    public void handlerAdded(final ChannelHandlerContext ctx) {
         sendTimer = ctx.channel().eventLoop().scheduleAtFixedRate(() -> sendRequest(ctx),
                 0, 50, TimeUnit.MILLISECONDS);
         connectTimer = ctx.channel().eventLoop().schedule(this::doTimeout,
@@ -41,29 +41,29 @@ public abstract class AbstractConnectionInitializer extends SimpleChannelInbound
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) {
+    public void handlerRemoved(final ChannelHandlerContext ctx) {
         sendTimer.cancel(false);
         connectTimer.cancel(false);
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
         final RakNet.Config config = RakNet.config(ctx);
         ctx.writeAndFlush(new ConnectionFailed(config.getMagic())).addListener(v -> fail(cause));
     }
 
-    protected void startPing(ChannelHandlerContext ctx) {
+    protected void startPing(final ChannelHandlerContext ctx) {
         ctx.channel().pipeline().addAfter(NAME, PingProducer.NAME, new PingProducer());
     }
 
-    protected void finish(ChannelHandlerContext ctx) {
+    protected void finish(final ChannelHandlerContext ctx) {
         final Channel channel = ctx.channel();
         connectPromise.trySuccess();
         removeHandler(ctx);
         channel.pipeline().fireChannelActive();
     }
 
-    protected void fail(Throwable cause) {
+    protected void fail(final Throwable cause) {
         connectPromise.tryFailure(cause);
     }
 

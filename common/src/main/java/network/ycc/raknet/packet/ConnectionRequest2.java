@@ -17,8 +17,8 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
     public ConnectionRequest2() {
     }
 
-    public ConnectionRequest2(RakNet.Magic magic, int mtu, long clientId,
-            InetSocketAddress address) {
+    public ConnectionRequest2(final RakNet.Magic magic, final int mtu, final long clientId,
+            final InetSocketAddress address) {
         this.magic = magic;
         this.mtu = mtu;
         this.clientId = clientId;
@@ -26,7 +26,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         magic.write(buf);
         writeAddress(buf, address);
         buf.writeShort(mtu);
@@ -34,7 +34,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         address = readAddress(buf);
         mtu = buf.readUnsignedShort();
@@ -45,7 +45,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -53,7 +53,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
         return mtu;
     }
 
-    public void setMtu(int mtu) {
+    public void setMtu(final int mtu) {
         this.mtu = mtu;
     }
 
@@ -62,7 +62,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
         return clientId;
     }
 
-    public void setClientId(long clientId) {
+    public void setClientId(final long clientId) {
         this.clientId = clientId;
     }
 
@@ -70,7 +70,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
         return address;
     }
 
-    public void setAddress(InetSocketAddress address) {
+    public void setAddress(final InetSocketAddress address) {
         this.address = address;
     }
 

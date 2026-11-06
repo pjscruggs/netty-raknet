@@ -19,7 +19,7 @@ public class DisconnectHandler extends ChannelDuplexHandler {
     public static final DisconnectHandler INSTANCE = new DisconnectHandler();
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
         if (msg instanceof Disconnect) {
             ReferenceCountUtil.release(msg);
             ctx.pipeline().remove(this);
@@ -30,7 +30,7 @@ public class DisconnectHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+    public void close(final ChannelHandlerContext ctx, final ChannelPromise promise) {
         if (ctx.channel().isActive()) {
             final ChannelPromise disconnectPromise = ctx.newPromise();
             final ScheduledFuture<?> timeout = ctx.channel().eventLoop().schedule(

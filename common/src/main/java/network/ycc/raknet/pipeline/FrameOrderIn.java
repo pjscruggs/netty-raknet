@@ -28,7 +28,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+    public void handlerRemoved(final ChannelHandlerContext ctx) throws Exception {
         super.handlerRemoved(ctx);
         Arrays.stream(channels).forEach(OrderedChannelPacketQueue::clear);
     }
@@ -66,7 +66,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
         protected int lastOrderIndex = -1;
         protected int lastSequenceIndex = -1;
 
-        protected void decodeSequenced(Frame frame, List<Object> list) {
+        protected void decodeSequenced(final Frame frame, final List<Object> list) {
             if (UINT.B3.minusWrap(frame.getSequenceIndex(), lastSequenceIndex) > 0) {
                 lastSequenceIndex = frame.getSequenceIndex();
                 //remove earlier packets from queue
@@ -78,7 +78,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
             decodeOrdered(frame, list); //register packet as normal
         }
 
-        protected void decodeOrdered(Frame frame, List<Object> list) {
+        protected void decodeOrdered(final Frame frame, final List<Object> list) {
             final int indexDiff = UINT.B3.minusWrap(frame.getOrderIndex(), lastOrderIndex);
             Constants.packetLossCheck(indexDiff, "ordered difference");
             if (indexDiff == 1) { //got next packet in line

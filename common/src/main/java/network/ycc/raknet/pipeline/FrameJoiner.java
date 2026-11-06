@@ -24,14 +24,14 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
     protected final Int2ObjectOpenHashMap<Builder> pendingPackets = new Int2ObjectOpenHashMap<>();
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+    public void handlerRemoved(final ChannelHandlerContext ctx) throws Exception {
         super.handlerRemoved(ctx);
         pendingPackets.values().forEach(Builder::release);
         pendingPackets.clear();
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, Frame frame, List<Object> list) {
+    protected void decode(final ChannelHandlerContext ctx, final Frame frame, final List<Object> list) {
         if (!frame.hasSplit()) {
             frame.touch("Not split");
             list.add(frame.retain());
@@ -65,17 +65,17 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
         protected int orderId;
         protected FrameData.Reliability reliability;
 
-        private Builder(int size) {
+        private Builder(final int size) {
             queue = new Int2ObjectOpenHashMap<>(size);
         }
 
-        private static Builder create(ByteBufAllocator alloc, Frame frame) {
+        private static Builder create(final ByteBufAllocator alloc, final Frame frame) {
             final Builder out = new Builder(frame.getSplitCount());
             out.init(alloc, frame);
             return out;
         }
 
-        void init(ByteBufAllocator alloc, Frame packet) {
+        void init(final ByteBufAllocator alloc, final Frame packet) {
             assert data == null;
             splitIdx = 0;
             data = alloc.compositeDirectBuffer(packet.getSplitCount());
@@ -85,7 +85,7 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
             add(packet);
         }
 
-        void add(Frame packet) {
+        void add(final Frame packet) {
             assert packet.getReliability().equals(samplePacket.getReliability());
             assert packet.getOrderChannel() == samplePacket.getOrderChannel();
             assert packet.getOrderIndex() == samplePacket.getOrderIndex();

@@ -47,15 +47,15 @@ public class RakNet {
         }
     };
 
-    public static Config config(ChannelHandlerContext ctx) {
+    public static Config config(final ChannelHandlerContext ctx) {
         return config(ctx.channel());
     }
 
-    public static Config config(Channel channel) {
+    public static Config config(final Channel channel) {
         return (Config) channel.config();
     }
 
-    public static MetricsLogger metrics(ChannelHandlerContext ctx) {
+    public static MetricsLogger metrics(final ChannelHandlerContext ctx) {
         return config(ctx).getMetrics();
     }
 
@@ -63,23 +63,23 @@ public class RakNet {
      * Channel specific metrics logging interface.
      */
     public interface MetricsLogger {
-        default void packetsIn(int delta) {}
-        default void framesIn(int delta) {}
-        default void frameError(int delta) {}
-        default void bytesIn(int delta) {}
-        default void packetsOut(int delta) {}
-        default void framesOut(int delta) {}
-        default void bytesOut(int delta) {}
-        default void bytesRecalled(int delta) {}
-        default void bytesACKd(int delta) {}
-        default void bytesNACKd(int delta) {}
-        default void acksSent(int delta) {}
-        default void nacksSent(int delta) {}
-        default void measureRTTns(long n) {}
-        default void measureRTTnsStdDev(long n) {}
-        default void measureBurstTokens(int n) {}
+        default void packetsIn(final int delta) {}
+        default void framesIn(final int delta) {}
+        default void frameError(final int delta) {}
+        default void bytesIn(final int delta) {}
+        default void packetsOut(final int delta) {}
+        default void framesOut(final int delta) {}
+        default void bytesOut(final int delta) {}
+        default void bytesRecalled(final int delta) {}
+        default void bytesACKd(final int delta) {}
+        default void bytesNACKd(final int delta) {}
+        default void acksSent(final int delta) {}
+        default void nacksSent(final int delta) {}
+        default void measureRTTns(final long n) {}
+        default void measureRTTnsStdDev(final long n) {}
+        default void measureBurstTokens(final int n) {}
 
-        default void currentQueuedBytes(int bytes) {}
+        default void currentQueuedBytes(final int bytes) {}
     }
 
     public interface Config extends ChannelConfig {
@@ -182,7 +182,7 @@ public class RakNet {
         public static final ReliableFrameHandling INSTANCE = new ReliableFrameHandling();
 
         @Override
-        protected void initChannel(Channel channel) {
+        protected void initChannel(final Channel channel) {
             channel.pipeline()
                     .addLast(ReliabilityHandler.NAME,   new ReliabilityHandler())
                     .addLast(FrameJoiner.NAME,          new FrameJoiner())
@@ -197,7 +197,7 @@ public class RakNet {
         public static final PacketHandling INSTANCE = new PacketHandling();
 
         @Override
-        protected void initChannel(Channel channel) {
+        protected void initChannel(final Channel channel) {
             channel.pipeline()
                     .addLast(DisconnectHandler.NAME,    DisconnectHandler.INSTANCE)
                     .addLast(PingHandler.NAME,          PingHandler.INSTANCE)

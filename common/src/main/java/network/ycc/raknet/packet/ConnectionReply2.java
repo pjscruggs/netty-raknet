@@ -14,13 +14,13 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
     public ConnectionReply2() {
     }
 
-    public ConnectionReply2(RakNet.Magic magic, int mtu, long serverId, InetSocketAddress address) {
+    public ConnectionReply2(final RakNet.Magic magic, final int mtu, final long serverId, final InetSocketAddress address) {
         super(magic, mtu, serverId);
         this.address = address;
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         magic.write(buf);
         buf.writeLong(serverId);
         if (address == null) {
@@ -33,7 +33,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();
         address = readAddress(buf);
@@ -47,7 +47,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
         return address;
     }
 
-    public void setAddress(InetSocketAddress address) {
+    public void setAddress(final InetSocketAddress address) {
         this.address = address;
     }
 

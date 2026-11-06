@@ -9,7 +9,7 @@ public class Constants {
 //    public static final int MAX_PACKET_LOSS = SystemPropertyUtil
 //            .getInt("raknetserver.maxPacketLoss", 8192);
 
-    public static void packetLossCheck(int n, String location) {
+    public static void packetLossCheck(final int n, final String location) {
 //        if (n > Constants.MAX_PACKET_LOSS) {
 //            throw new DecoderException("Too big packet loss: " + location);
 //        }

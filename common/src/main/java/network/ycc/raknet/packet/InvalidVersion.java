@@ -15,20 +15,20 @@ public class InvalidVersion extends SimplePacket implements Packet {
 
     }
 
-    public InvalidVersion(RakNet.Magic magic, long serverId) {
+    public InvalidVersion(final RakNet.Magic magic, final long serverId) {
         this.magic = magic;
         this.serverId = serverId;
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeByte(version);
         magic.write(buf);
         buf.writeLong(serverId);
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         version = buf.readUnsignedByte();
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();
@@ -38,7 +38,7 @@ public class InvalidVersion extends SimplePacket implements Packet {
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -46,7 +46,7 @@ public class InvalidVersion extends SimplePacket implements Packet {
         return version;
     }
 
-    public void setVersion(int version) {
+    public void setVersion(final int version) {
         this.version = version;
     }
 
@@ -54,7 +54,7 @@ public class InvalidVersion extends SimplePacket implements Packet {
         return serverId;
     }
 
-    public void setServerId(long serverId) {
+    public void setServerId(final long serverId) {
         this.serverId = serverId;
     }
 

@@ -47,7 +47,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     };
 
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
+    public void handlerAdded(final ChannelHandlerContext ctx) {
         config = RakNet.config(ctx);
         this.ctx = ctx;
         ctx.channel().attr(RakNet.WRITABLE).set(true);
@@ -55,12 +55,12 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) {
+    public void handlerRemoved(final ChannelHandlerContext ctx) {
         clearQueue(null);
     }
 
     @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+    public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
         if (msg instanceof Frame) {
             final Frame frame = (Frame) msg;
             queueFrame(frame);
@@ -73,7 +73,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void flush(ChannelHandlerContext ctx) {
+    public void flush(final ChannelHandlerContext ctx) {
         if (!ctx.channel().isOpen()) {
             ctx.flush();
             return;
@@ -89,7 +89,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+    public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) {
         //missed some flush ticks, lets catch up on a few things
         if (evt instanceof MissedFlushes) {
             updateBurstTokens(((MissedFlushes) evt).nFlushes);
@@ -98,7 +98,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
         try {
             if (msg instanceof Reliability.ACK) {
                 readAck((Reliability.ACK) msg);
@@ -114,7 +114,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
     }
 
-    protected void clearQueue(Throwable t) {
+    protected void clearQueue(final Throwable t) {
         if (t != null) {
             frameQueue.forEach(frame -> {
                 if (frame.getPromise() != null) {
@@ -211,7 +211,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         config.getMetrics().bytesNACKd(bytesNACKd);
     }
 
-    protected void queueFrame(Frame frame) {
+    protected void queueFrame(final Frame frame) {
         final int roughPacketSize = frame.getRoughPacketSize();
         if (roughPacketSize > config.getMTU()) {
             throw new CorruptedFrameException(
@@ -223,7 +223,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         config.getMetrics().currentQueuedBytes(this.queuedBytes);
     }
 
-    protected void adjustResendGauge(int n) {
+    protected void adjustResendGauge(final int n) {
         if (config.isIgnoreResendGauge()) {
             this.resendGauge = 2;
             return;
@@ -235,7 +235,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         );
     }
 
-    protected void updateBurstTokens(int nTicks) {
+    protected void updateBurstTokens(final int nTicks) {
         if (config.isNoDelayEnabled()) {
             burstTokens = Math.max(0, config.getMaxPendingFrameSets());
         } else {
@@ -251,7 +251,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         config.getMetrics().measureBurstTokens(burstTokens);
     }
 
-    protected void sendResponses(ChannelHandlerContext ctx) {
+    protected void sendResponses(final ChannelHandlerContext ctx) {
         if (!ackSet.isEmpty()) {
             ctx.write(new Reliability.ACK(ackSet)).addListener(RakNet.INTERNAL_WRITE_LISTENER);
             config.getMetrics().acksSent(ackSet.size());
@@ -264,7 +264,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
     }
 
-    protected void trySendResponses(ChannelHandlerContext ctx) {
+    protected void trySendResponses(final ChannelHandlerContext ctx) {
         if (ackSet.size() >= config.getDefaultPendingFrameSets() - 1) {
             sendResponses(ctx);
             ctx.flush();
@@ -287,7 +287,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
     }
 
-    protected void produceFrameSet(ChannelHandlerContext ctx, int maxSize) {
+    protected void produceFrameSet(final ChannelHandlerContext ctx, final int maxSize) {
         if (frameQueue.isEmpty()) return;
         final FrameSet frameSet = FrameSet.create();
         Frame frame;
@@ -320,7 +320,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
     }
 
-    protected void produceFrameSets(ChannelHandlerContext ctx) {
+    protected void produceFrameSets(final ChannelHandlerContext ctx) {
         final int mtu = config.getMTU();
         final int maxSize = mtu - FrameSet.HEADER_SIZE - Frame.HEADER_SIZE;
         final int maxPendingFrameSets = config.getDefaultPendingFrameSets() + burstTokens;
@@ -334,7 +334,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     //TODO: instead of immediate recall, mark framesets as 'recalled', and flush at flush cycle
-    protected void recallFrameSet(FrameSet frameSet) {
+    protected void recallFrameSet(final FrameSet frameSet) {
         try {
             adjustResendGauge(-1);
             config.getMetrics().bytesRecalled(frameSet.getRoughSize());
@@ -353,7 +353,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
     }
 
-    protected void updateBackPressure(ChannelHandlerContext ctx) {
+    protected void updateBackPressure(final ChannelHandlerContext ctx) {
         final int queuedBytes = getQueuedBytes();
         final boolean oldWritable = ctx.channel().attr(RakNet.WRITABLE).get();
         boolean newWritable = oldWritable;

@@ -97,7 +97,7 @@ public class DefaultCodec implements RakNet.Codec {
     }
 
     @Override
-    public FrameData encode(FramedPacket packet, ByteBufAllocator alloc) {
+    public FrameData encode(final FramedPacket packet, final ByteBufAllocator alloc) {
         if (packet instanceof FrameData) {
             return ((FrameData) packet).retain();
         }
@@ -115,7 +115,7 @@ public class DefaultCodec implements RakNet.Codec {
 
     @SuppressWarnings("unchecked")
     @Override
-    public void encode(Packet packet, ByteBuf out) {
+    public void encode(final Packet packet, final ByteBuf out) {
         if (!idFromClass.containsKey(packet.getClass())) {
             throw new IllegalArgumentException("Unknown encoder for " + packet.getClass());
         }
@@ -126,7 +126,7 @@ public class DefaultCodec implements RakNet.Codec {
     }
 
     @Override
-    public ByteBuf produceEncoded(Packet packet, ByteBufAllocator alloc) {
+    public ByteBuf produceEncoded(final Packet packet, final ByteBufAllocator alloc) {
         if (packet instanceof FrameSet && ((FrameSet) packet).getRoughSize() >= 128) {
             return ((FrameSet) packet).produce(alloc);
         }
@@ -140,7 +140,7 @@ public class DefaultCodec implements RakNet.Codec {
     }
 
     @Override
-    public Packet decode(ByteBuf buf) {
+    public Packet decode(final ByteBuf buf) {
         final int packetId = buf.getUnsignedByte(buf.readerIndex());
         final Function<ByteBuf, ? extends Packet> decoder = decoders.get(packetId);
         if (decoder == null) {
@@ -150,7 +150,7 @@ public class DefaultCodec implements RakNet.Codec {
     }
 
     @Override
-    public FramedPacket decode(FrameData data) {
+    public FramedPacket decode(final FrameData data) {
         final int packetId = data.getPacketId();
         final Function<ByteBuf, ? extends Packet> decoder = decoders.get(packetId);
         if (decoder == null || !framedPacketIds.contains(packetId)) {
@@ -168,18 +168,18 @@ public class DefaultCodec implements RakNet.Codec {
     }
 
     @Override
-    public int packetIdFor(Class<? extends Packet> type) {
+    public int packetIdFor(final Class<? extends Packet> type) {
         return idFromClass.getInt(type);
     }
 
     ///// REGISTRY /////
 
-    protected <T extends SimplePacket> void register(int id, Class<T> clz, Supplier<T> cons) {
+    protected <T extends SimplePacket> void register(final int id, final Class<T> clz, final Supplier<T> cons) {
         register(id, clz, decodeSimple(cons), encodeSimple(id));
     }
 
-    protected <T extends Packet> void register(int id, Class<? extends Packet> clz,
-            Function<ByteBuf, T> decoder, BiConsumer<T, ByteBuf> encoder) {
+    protected <T extends Packet> void register(final int id, final Class<? extends Packet> clz,
+            final Function<ByteBuf, T> decoder, final BiConsumer<T, ByteBuf> encoder) {
         idFromClass.put(clz, id);
         decoders.put(id, decoder);
         encoders.put(id, encoder);
@@ -188,7 +188,7 @@ public class DefaultCodec implements RakNet.Codec {
         }
     }
 
-    protected <T extends SimplePacket> Function<ByteBuf, T> decodeSimple(Supplier<T> cons) {
+    protected <T extends SimplePacket> Function<ByteBuf, T> decodeSimple(final Supplier<T> cons) {
         return buf -> {
             final T inst = cons.get();
             buf.skipBytes(1);
@@ -197,7 +197,7 @@ public class DefaultCodec implements RakNet.Codec {
         };
     }
 
-    protected <T extends SimplePacket> BiConsumer<T, ByteBuf> encodeSimple(int id) {
+    protected <T extends SimplePacket> BiConsumer<T, ByteBuf> encodeSimple(final int id) {
         return (packet, buf) -> {
             buf.writeByte(id);
             packet.encode(buf);

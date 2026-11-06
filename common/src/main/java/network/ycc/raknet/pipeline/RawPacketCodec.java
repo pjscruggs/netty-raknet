@@ -18,14 +18,14 @@ public class RawPacketCodec extends MessageToMessageCodec<ByteBuf, Packet> {
     public static final RawPacketCodec INSTANCE = new RawPacketCodec();
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, Packet in, List<Object> out) {
+    protected void encode(final ChannelHandlerContext ctx, final Packet in, final List<Object> out) {
         final ByteBuf encoded = RakNet.config(ctx).getCodec().produceEncoded(in, ctx.alloc());
         RakNet.metrics(ctx).bytesOut(encoded.readableBytes());
         out.add(encoded);
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
+    protected void decode(final ChannelHandlerContext ctx, final ByteBuf in, final List<Object> out) {
         if (in.readableBytes() != 0) {
             RakNet.metrics(ctx).bytesIn(in.readableBytes());
             try {

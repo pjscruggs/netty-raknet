@@ -26,12 +26,12 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     protected ScheduledFuture<?> flushTask = null;
 
     /** Helper method to trigger a flush check. */
-    public static void checkFlushTick(Channel channel) {
+    public static void checkFlushTick(final Channel channel) {
         channel.pipeline().fireUserEventTriggered(FLUSH_CHECK_SIGNAL);
     }
 
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
+    public void handlerAdded(final ChannelHandlerContext ctx) {
         assert flushTask == null;
         flushTask = ctx.channel().eventLoop().scheduleAtFixedRate(
                 () -> checkFlushTick(ctx.channel()),
@@ -40,19 +40,19 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) {
+    public void handlerRemoved(final ChannelHandlerContext ctx) {
         flushTask.cancel(false);
         flushTask = null;
     }
 
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) {
+    public void channelReadComplete(final ChannelHandlerContext ctx) {
         ctx.fireChannelReadComplete();
         maybeFlush(ctx.channel());
     }
 
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+    public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) {
         if (evt == FLUSH_CHECK_SIGNAL) {
             maybeFlush(ctx.channel());
         } else {
@@ -61,7 +61,7 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void flush(ChannelHandlerContext ctx) {
+    public void flush(final ChannelHandlerContext ctx) {
         if (tickAccum >= TICK_RESOLUTION) {
             tickAccum -= TICK_RESOLUTION;
         } else {
@@ -71,12 +71,12 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     }
 
     @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) {
+    public void channelWritabilityChanged(final ChannelHandlerContext ctx) {
         maybeFlush(ctx.channel());
         ctx.fireChannelWritabilityChanged();
     }
 
-    protected void maybeFlush(Channel channel) {
+    protected void maybeFlush(final Channel channel) {
         final long curTime = System.nanoTime();
         tickAccum += curTime - lastTickAccum;
         lastTickAccum = curTime;

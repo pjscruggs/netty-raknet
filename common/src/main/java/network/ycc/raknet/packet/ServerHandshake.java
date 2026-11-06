@@ -14,11 +14,11 @@ public class ServerHandshake extends SimpleFramedPacket {
         reliability = Reliability.RELIABLE;
     }
 
-    public ServerHandshake(InetSocketAddress clientAddr, long timestamp) {
+    public ServerHandshake(final InetSocketAddress clientAddr, final long timestamp) {
         this(clientAddr, timestamp, 20);
     }
 
-    public ServerHandshake(InetSocketAddress clientAddr, long timestamp, int nExtraAddresses) {
+    public ServerHandshake(final InetSocketAddress clientAddr, final long timestamp, final int nExtraAddresses) {
         this();
         this.clientAddr = clientAddr;
         this.timestamp = timestamp;
@@ -26,7 +26,7 @@ public class ServerHandshake extends SimpleFramedPacket {
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         writeAddress(buf, clientAddr);
         buf.writeShort(0);
         for (int i = 0; i < nExtraAddresses; i++) {
@@ -37,7 +37,7 @@ public class ServerHandshake extends SimpleFramedPacket {
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         clientAddr = readAddress(buf);
         buf.readShort();
         for (nExtraAddresses = 0; buf.readableBytes() > 16; nExtraAddresses++) {
@@ -51,7 +51,7 @@ public class ServerHandshake extends SimpleFramedPacket {
         return clientAddr;
     }
 
-    public void setClientAddr(InetSocketAddress clientAddr) {
+    public void setClientAddr(final InetSocketAddress clientAddr) {
         this.clientAddr = clientAddr;
     }
 
@@ -59,7 +59,7 @@ public class ServerHandshake extends SimpleFramedPacket {
         return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    public void setTimestamp(final long timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -67,7 +67,7 @@ public class ServerHandshake extends SimpleFramedPacket {
         return nExtraAddresses;
     }
 
-    public void setnExtraAddresses(int nExtraAddresses) {
+    public void setnExtraAddresses(final int nExtraAddresses) {
         this.nExtraAddresses = nExtraAddresses;
     }
 

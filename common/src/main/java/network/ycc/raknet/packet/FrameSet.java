@@ -26,7 +26,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(FrameSet.class);
     private static final Recycler<FrameSet> recycler = new Recycler<FrameSet>() {
         @Override
-        protected FrameSet newObject(Handle<FrameSet> handle) {
+        protected FrameSet newObject(final Handle<FrameSet> handle) {
             return new FrameSet(handle);
         }
     };
@@ -37,7 +37,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
     protected long sentTime;
     protected ResourceLeakTracker<FrameSet> tracker;
     protected int size;
-    private FrameSet(Recycler.Handle<FrameSet> handle) {
+    private FrameSet(final Recycler.Handle<FrameSet> handle) {
         this.handle = handle;
         setRefCnt(0);
     }
@@ -55,7 +55,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         return out;
     }
 
-    public static FrameSet read(ByteBuf buf) {
+    public static FrameSet read(final ByteBuf buf) {
         final FrameSet out = create();
         try {
             out.size = buf.readableBytes();
@@ -96,7 +96,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         handle.recycle(this);
     }
 
-    public ByteBuf produce(ByteBufAllocator alloc) {
+    public ByteBuf produce(final ByteBufAllocator alloc) {
         final ByteBuf header = alloc.ioBuffer(HEADER_SIZE, HEADER_SIZE);
         final CompositeByteBuf out = alloc.compositeDirectBuffer(1 + frames.size() * 2);
         try {
@@ -110,12 +110,12 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         }
     }
 
-    public void write(ByteBuf out) {
+    public void write(final ByteBuf out) {
         writeHeader(out);
         frames.forEach(frame -> frame.write(out));
     }
 
-    protected void writeHeader(ByteBuf out) {
+    protected void writeHeader(final ByteBuf out) {
         out.writeByte(DefaultCodec.FRAME_DATA_START); //TODO: erm... ?
         out.writeMediumLE(seqId);
     }
@@ -130,7 +130,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         });
     }
 
-    public void fail(Throwable e) {
+    public void fail(final Throwable e) {
         frames.forEach(frame -> {
             final ChannelPromise promise = frame.getPromise();
             if (promise != null) {
@@ -141,7 +141,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
     }
 
     @Override
-    public ReferenceCounted touch(Object hint) {
+    public ReferenceCounted touch(final Object hint) {
         if (tracker != null) {
             tracker.record(hint);
         }
@@ -157,7 +157,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         return seqId;
     }
 
-    public void setSeqId(int seqId) {
+    public void setSeqId(final int seqId) {
         this.seqId = seqId;
     }
 
@@ -165,12 +165,12 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         return frames.size();
     }
 
-    public void addPacket(Frame packet) {
+    public void addPacket(final Frame packet) {
         frames.add(packet);
         size += packet.getRoughPacketSize();
     }
 
-    public void createFrames(Consumer<Frame> consumer) {
+    public void createFrames(final Consumer<Frame> consumer) {
         frames.forEach(frame -> consumer.accept(frame.retain()));
     }
 

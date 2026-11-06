@@ -11,7 +11,7 @@ public class Ping extends SimpleFramedPacket {
         reliability = Reliability.UNRELIABLE;
     }
 
-    public Ping(long timestamp) {
+    public Ping(final long timestamp) {
         super();
         this.timestamp = timestamp;
     }
@@ -23,12 +23,12 @@ public class Ping extends SimpleFramedPacket {
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeLong(timestamp);
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         timestamp = buf.readLong();
     }
 

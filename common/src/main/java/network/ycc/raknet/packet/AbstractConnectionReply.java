@@ -13,7 +13,7 @@ public abstract class AbstractConnectionReply extends SimplePacket {
     public AbstractConnectionReply() {
     }
 
-    public AbstractConnectionReply(RakNet.Magic magic, int mtu, long serverId) {
+    public AbstractConnectionReply(final RakNet.Magic magic, final int mtu, final long serverId) {
         this.magic = magic;
         this.mtu = mtu;
         this.serverId = serverId;
@@ -23,7 +23,7 @@ public abstract class AbstractConnectionReply extends SimplePacket {
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -31,7 +31,7 @@ public abstract class AbstractConnectionReply extends SimplePacket {
         return mtu;
     }
 
-    public void setMtu(int mtu) {
+    public void setMtu(final int mtu) {
         this.mtu = mtu;
     }
 
@@ -39,7 +39,7 @@ public abstract class AbstractConnectionReply extends SimplePacket {
         return serverId;
     }
 
-    public void setServerId(long serverId) {
+    public void setServerId(final long serverId) {
         this.serverId = serverId;
     }
 

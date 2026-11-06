@@ -11,7 +11,7 @@ public abstract class SimpleFramedPacket extends SimplePacket implements FramedP
     }
 
     @Override
-    public void setReliability(FramedPacket.Reliability reliability) {
+    public void setReliability(final FramedPacket.Reliability reliability) {
         this.reliability = reliability;
     }
 
@@ -21,7 +21,7 @@ public abstract class SimpleFramedPacket extends SimplePacket implements FramedP
     }
 
     @Override
-    public void setOrderChannel(int orderChannel) {
+    public void setOrderChannel(final int orderChannel) {
         this.orderChannel = orderChannel;
     }
 

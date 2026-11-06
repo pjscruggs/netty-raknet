@@ -18,7 +18,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(FrameData.class);
     private static final Recycler<FrameData> recycler = new Recycler<FrameData>() {
         @Override
-        protected FrameData newObject(Handle<FrameData> handle) {
+        protected FrameData newObject(final Handle<FrameData> handle) {
             return new FrameData(handle);
         }
     };
@@ -28,7 +28,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
     private boolean fragment;
     private ByteBuf data;
     private FramedPacket.Reliability reliability;
-    private FrameData(Recycler.Handle<FrameData> handle) {
+    private FrameData(final Recycler.Handle<FrameData> handle) {
         this.handle = handle;
         setRefCnt(0);
     }
@@ -46,7 +46,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
         return out;
     }
 
-    public static FrameData create(ByteBufAllocator alloc, int packetId, ByteBuf buf) {
+    public static FrameData create(final ByteBufAllocator alloc, final int packetId, final ByteBuf buf) {
         final CompositeByteBuf out = alloc.compositeDirectBuffer(2);
         try {
             out.addComponent(true, alloc.ioBuffer(1, 1).writeByte(packetId));
@@ -57,7 +57,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
         }
     }
 
-    public static FrameData read(ByteBuf buf, int length, boolean fragment) {
+    public static FrameData read(final ByteBuf buf, final int length, final boolean fragment) {
         assert length > 0;
         final FrameData packet = createRaw();
         try {
@@ -70,7 +70,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
         }
     }
 
-    public void write(ByteBuf out) {
+    public void write(final ByteBuf out) {
         out.writeBytes(data, data.readerIndex(), data.readableBytes());
     }
 
@@ -104,7 +104,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
     }
 
     @Override
-    public ReferenceCounted touch(Object hint) {
+    public ReferenceCounted touch(final Object hint) {
         if (tracker != null) {
             tracker.record(hint);
         }
@@ -131,7 +131,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
     }
 
     @Override
-    public void setReliability(FramedPacket.Reliability reliability) {
+    public void setReliability(final FramedPacket.Reliability reliability) {
         this.reliability = reliability;
     }
 
@@ -141,7 +141,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
     }
 
     @Override
-    public void setOrderChannel(int orderChannel) {
+    public void setOrderChannel(final int orderChannel) {
         this.orderId = orderChannel;
     }
 

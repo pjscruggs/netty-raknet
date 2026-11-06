@@ -14,7 +14,7 @@ public class PingHandler extends SimpleChannelInboundHandler<Ping> {
     public static final PingHandler INSTANCE = new PingHandler();
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, Ping ping) {
+    protected void channelRead0(final ChannelHandlerContext ctx, final Ping ping) {
         ctx.write(new Pong(ping.getTimestamp(), ping.getReliability()));
     }
 

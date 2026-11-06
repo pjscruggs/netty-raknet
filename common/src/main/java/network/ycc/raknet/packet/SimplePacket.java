@@ -16,19 +16,19 @@ public abstract class SimplePacket implements Packet {
 
     private static final InetSocketAddress NULL_ADDR = new InetSocketAddress(0);
 
-    public static void writeString(ByteBuf buf, String str) {
+    public static void writeString(final ByteBuf buf, final String str) {
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
         buf.writeShort(bytes.length);
         buf.writeBytes(bytes);
     }
 
-    public static String readString(ByteBuf buf) {
+    public static String readString(final ByteBuf buf) {
         byte[] bytes = new byte[buf.readShort()];
         buf.readBytes(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
-    public static InetSocketAddress readAddress(ByteBuf buf) {
+    public static InetSocketAddress readAddress(final ByteBuf buf) {
         final int type = buf.readByte();
         byte[] addr;
         int port;
@@ -54,11 +54,11 @@ public abstract class SimplePacket implements Packet {
         }
     }
 
-    public static void writeAddress(ByteBuf buf) {
+    public static void writeAddress(final ByteBuf buf) {
         writeAddress(buf, NULL_ADDR);
     }
 
-    public static void writeAddress(ByteBuf buf, InetSocketAddress address) {
+    public static void writeAddress(final ByteBuf buf, final InetSocketAddress address) {
         final InetAddress addr = address.getAddress();
         if (addr instanceof Inet4Address) {
             buf.writeByte((byte) 4);

@@ -19,19 +19,19 @@ public class UserDataCodec extends MessageToMessageCodec<FrameData, ByteBuf> {
 
     private final int packetId;
 
-    public UserDataCodec(int packetId) {
+    public UserDataCodec(final int packetId) {
         this.packetId = packetId;
     }
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> out) {
+    protected void encode(final ChannelHandlerContext ctx, final ByteBuf buf, final List<Object> out) {
         if (buf.isReadable()) {
             out.add(FrameData.create(ctx.alloc(), packetId, buf));
         }
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, FrameData packet, List<Object> out) {
+    protected void decode(final ChannelHandlerContext ctx, final FrameData packet, final List<Object> out) {
         assert !packet.isFragment();
         if (packet.getDataSize() > 0) {
             if (packetId == packet.getPacketId()) {

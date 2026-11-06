@@ -19,7 +19,7 @@ public class FrameOrderOut extends MessageToMessageEncoder<FramedPacket> {
     protected int[] nextSequenceIndex = new int[8];
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, FramedPacket packet, List<Object> list) {
+    protected void encode(final ChannelHandlerContext ctx, final FramedPacket packet, final List<Object> list) {
         final RakNet.Config config = RakNet.config(ctx);
         final FrameData data = config.getCodec().encode(packet, ctx.alloc());
         try {
@@ -36,13 +36,13 @@ public class FrameOrderOut extends MessageToMessageEncoder<FramedPacket> {
         }
     }
 
-    protected int getNextOrderIndex(int channel) {
+    protected int getNextOrderIndex(final int channel) {
         final int orderIndex = nextOrderIndex[channel];
         nextOrderIndex[channel] = UINT.B3.plus(nextOrderIndex[channel], 1);
         return orderIndex;
     }
 
-    protected int getNextSequenceIndex(int channel) {
+    protected int getNextSequenceIndex(final int channel) {
         final int sequenceIndex = nextSequenceIndex[channel];
         nextSequenceIndex[channel] = UINT.B3.plus(nextSequenceIndex[channel], 1);
         return sequenceIndex;

@@ -41,7 +41,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     private volatile boolean NACKEnabled = false;
     private volatile boolean noDelay = false;
 
-    public DefaultConfig(Channel channel) {
+    public DefaultConfig(final Channel channel) {
         super(channel);
         setRTTNanos(TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS));
     }
@@ -57,7 +57,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
 
     @Override
     @SuppressWarnings({"unchecked", "deprecation"})
-    public <T> T getOption(ChannelOption<T> option) {
+    public <T> T getOption(final ChannelOption<T> option) {
         if (option == RakNet.SERVER_ID) {
             return (T) (Long) serverId;
         } else if (option == RakNet.CLIENT_ID) {
@@ -82,7 +82,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
 
     @Override
     @SuppressWarnings("deprecation")
-    public <T> boolean setOption(ChannelOption<T> option, T value) {
+    public <T> boolean setOption(final ChannelOption<T> option, final T value) {
         if (option == RakNet.SERVER_ID) {
             serverId = (Long) value;
         } else if (option == RakNet.CLIENT_ID) {
@@ -108,7 +108,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public boolean containsProtocolVersion(int protocolVersion) {
+    public boolean containsProtocolVersion(final int protocolVersion) {
         for (int version : this.protocolVersions) {
             if (version == protocolVersion) return true;
         }
@@ -121,7 +121,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setMetrics(RakNet.MetricsLogger metrics) {
+    public void setMetrics(final RakNet.MetricsLogger metrics) {
         this.metrics = metrics;
     }
 
@@ -131,7 +131,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setServerId(long serverId) {
+    public void setServerId(final long serverId) {
         this.serverId = serverId;
     }
 
@@ -141,7 +141,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setClientId(long clientId) {
+    public void setClientId(final long clientId) {
         this.clientId = clientId;
     }
 
@@ -151,7 +151,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setMTU(int mtu) {
+    public void setMTU(final int mtu) {
         this.mtu = mtu;
     }
 
@@ -161,7 +161,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setRetryDelayNanos(long retryDelayNanos) {
+    public void setRetryDelayNanos(final long retryDelayNanos) {
         this.retryDelayNanos = retryDelayNanos;
     }
 
@@ -172,7 +172,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setRTTNanos(long rtt) {
+    public void setRTTNanos(final long rtt) {
         rttStats.clear();
         rttStats.addValue(rtt);
     }
@@ -183,7 +183,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void updateRTTNanos(long rttSample) {
+    public void updateRTTNanos(final long rttSample) {
         rttStats.addValue(rttSample);
         metrics.measureRTTns(getRTTNanos());
         metrics.measureRTTnsStdDev(getRTTStdDevNanos());
@@ -195,7 +195,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setMaxPendingFrameSets(int maxPendingFrameSets) {
+    public void setMaxPendingFrameSets(final int maxPendingFrameSets) {
         this.maxPendingFrameSets = maxPendingFrameSets;
     }
 
@@ -205,7 +205,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setDefaultPendingFrameSets(int defaultPendingFrameSets) {
+    public void setDefaultPendingFrameSets(final int defaultPendingFrameSets) {
         this.defaultPendingFrameSets = defaultPendingFrameSets;
     }
 
@@ -215,7 +215,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setMaxQueuedBytes(int maxQueuedBytes) {
+    public void setMaxQueuedBytes(final int maxQueuedBytes) {
         this.maxQueuedBytes = maxQueuedBytes;
     }
 
@@ -225,7 +225,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -235,7 +235,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setCodec(RakNet.Codec codec) {
+    public void setCodec(final RakNet.Codec codec) {
         this.codec = codec;
     }
 
@@ -245,7 +245,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setprotocolVersions(int[] protocolVersions) {
+    public void setprotocolVersions(final int[] protocolVersions) {
         this.protocolVersions = protocolVersions;
     }
 
@@ -255,7 +255,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setMaxConnections(int maxConnections) {
+    public void setMaxConnections(final int maxConnections) {
         this.maxConnections = maxConnections;
     }
 
@@ -265,7 +265,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setProtocolVersion(int protocolVersion) {
+    public void setProtocolVersion(final int protocolVersion) {
         this.protocolVersion = protocolVersion;
     }
 
@@ -275,7 +275,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setIgnoreResendGauge(boolean ignoreResendGauge) {
+    public void setIgnoreResendGauge(final boolean ignoreResendGauge) {
         this.ignoreResendGauge = ignoreResendGauge;
     }
 
@@ -285,7 +285,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setNACKEnabled(boolean NACKEnabled) {
+    public void setNACKEnabled(final boolean NACKEnabled) {
         this.NACKEnabled = NACKEnabled;
     }
 
@@ -295,7 +295,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     @Override
-    public void setNoDelayEnabled(boolean value) {
+    public void setNoDelayEnabled(final boolean value) {
         this.noDelay = value;
     }
 }

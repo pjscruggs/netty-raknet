@@ -12,14 +12,14 @@ public class UnconnectedPing extends SimplePacket implements Packet {
     private long clientId;
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeLong(clientTime);
         magic.write(buf);
         buf.writeLong(clientId);
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         clientTime = buf.readLong();
         magic = DefaultMagic.decode(buf);
         clientId = buf.readLong();
@@ -29,7 +29,7 @@ public class UnconnectedPing extends SimplePacket implements Packet {
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -37,7 +37,7 @@ public class UnconnectedPing extends SimplePacket implements Packet {
         return clientTime;
     }
 
-    public void setClientTime(long clientTime) {
+    public void setClientTime(final long clientTime) {
         this.clientTime = clientTime;
     }
 
@@ -45,7 +45,7 @@ public class UnconnectedPing extends SimplePacket implements Packet {
         return clientId;
     }
 
-    public void setClientId(long clientId) {
+    public void setClientId(final long clientId) {
         this.clientId = clientId;
     }
 

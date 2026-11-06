@@ -10,12 +10,12 @@ public class Disconnect extends SimpleFramedPacket {
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         // NOOP
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         // NOOP
     }
 

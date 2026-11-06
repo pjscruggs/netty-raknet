@@ -14,7 +14,7 @@ public class PongHandler extends SimpleChannelInboundHandler<Pong> {
     public static final PongHandler INSTANCE = new PongHandler();
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, Pong pong) {
+    protected void channelRead0(final ChannelHandlerContext ctx, final Pong pong) {
         if (!pong.getReliability().isReliable) {
             final RakNet.Config config = RakNet.config(ctx);
             config.updateRTTNanos(pong.getRTT());

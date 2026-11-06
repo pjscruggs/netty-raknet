@@ -17,12 +17,12 @@ public class FramedPacketCodec extends MessageToMessageCodec<FrameData, FramedPa
     public static final FramedPacketCodec INSTANCE = new FramedPacketCodec();
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, FramedPacket in, List<Object> out) {
+    protected void encode(final ChannelHandlerContext ctx, final FramedPacket in, final List<Object> out) {
         out.add(RakNet.config(ctx).getCodec().encode(in, ctx.alloc()));
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, FrameData in, List<Object> out) {
+    protected void decode(final ChannelHandlerContext ctx, final FrameData in, final List<Object> out) {
         out.add(RakNet.config(ctx).getCodec().decode(in));
     }
 

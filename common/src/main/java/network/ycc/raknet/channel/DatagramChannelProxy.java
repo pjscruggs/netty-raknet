@@ -41,7 +41,7 @@ public class DatagramChannelProxy implements Channel {
     protected final DatagramChannel listener;
     protected final Config config;
 
-    public DatagramChannelProxy(Supplier<? extends DatagramChannel> ioChannelSupplier) {
+    public DatagramChannelProxy(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         this.ioChannelSupplier = ioChannelSupplier;
         listener = ioChannelSupplier.get();
         pipeline = newChannelPipeline();
@@ -53,7 +53,7 @@ public class DatagramChannelProxy implements Channel {
         config = new Config();
     }
 
-    public DatagramChannelProxy(Class<? extends DatagramChannel> ioChannelType) {
+    public DatagramChannelProxy(final Class<? extends DatagramChannel> ioChannelType) {
         this(() -> {
             try {
                 return ioChannelType.getDeclaredConstructor().newInstance();
@@ -162,17 +162,17 @@ public class DatagramChannelProxy implements Channel {
     }
 
     @Override
-    public ChannelFuture bind(SocketAddress localAddress) {
+    public ChannelFuture bind(final SocketAddress localAddress) {
         return pipeline.bind(localAddress);
     }
 
     @Override
-    public ChannelFuture connect(SocketAddress remoteAddress) {
+    public ChannelFuture connect(final SocketAddress remoteAddress) {
         return pipeline.connect(remoteAddress);
     }
 
     @Override
-    public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress) {
+    public ChannelFuture connect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
         return pipeline.connect(remoteAddress, localAddress);
     }
 
@@ -192,53 +192,53 @@ public class DatagramChannelProxy implements Channel {
     }
 
     @Override
-    public ChannelFuture bind(SocketAddress localAddress, ChannelPromise promise) {
+    public ChannelFuture bind(final SocketAddress localAddress, final ChannelPromise promise) {
         return pipeline.bind(localAddress, promise);
     }
 
     @Override
-    public ChannelFuture connect(SocketAddress remoteAddress, ChannelPromise promise) {
+    public ChannelFuture connect(final SocketAddress remoteAddress, final ChannelPromise promise) {
         return pipeline.connect(remoteAddress, promise);
     }
 
     @Override
-    public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress,
-            ChannelPromise promise) {
+    public ChannelFuture connect(final SocketAddress remoteAddress, final SocketAddress localAddress,
+            final ChannelPromise promise) {
         return pipeline.connect(remoteAddress, localAddress, promise);
     }
 
     @Override
-    public ChannelFuture disconnect(ChannelPromise promise) {
+    public ChannelFuture disconnect(final ChannelPromise promise) {
         return pipeline.disconnect(promise);
     }
 
     @Override
-    public ChannelFuture close(ChannelPromise promise) {
+    public ChannelFuture close(final ChannelPromise promise) {
         return pipeline.close(promise);
     }
 
     @Override
-    public ChannelFuture deregister(ChannelPromise promise) {
+    public ChannelFuture deregister(final ChannelPromise promise) {
         return pipeline.deregister(promise);
     }
 
     @Override
-    public ChannelFuture write(Object msg) {
+    public ChannelFuture write(final Object msg) {
         return pipeline.write(msg);
     }
 
     @Override
-    public ChannelFuture write(Object msg, ChannelPromise promise) {
+    public ChannelFuture write(final Object msg, final ChannelPromise promise) {
         return pipeline.write(msg, promise);
     }
 
     @Override
-    public ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
+    public ChannelFuture writeAndFlush(final Object msg, final ChannelPromise promise) {
         return pipeline.writeAndFlush(msg, promise);
     }
 
     @Override
-    public ChannelFuture writeAndFlush(Object msg) {
+    public ChannelFuture writeAndFlush(final Object msg) {
         return pipeline.writeAndFlush(msg);
     }
 
@@ -258,7 +258,7 @@ public class DatagramChannelProxy implements Channel {
     }
 
     @Override
-    public ChannelFuture newFailedFuture(Throwable cause) {
+    public ChannelFuture newFailedFuture(final Throwable cause) {
         return pipeline.newFailedFuture(cause);
     }
 
@@ -268,12 +268,12 @@ public class DatagramChannelProxy implements Channel {
     }
 
     @Override
-    public <T> Attribute<T> attr(AttributeKey<T> key) {
+    public <T> Attribute<T> attr(final AttributeKey<T> key) {
         return listener.attr(key);
     }
 
     @Override
-    public <T> boolean hasAttr(AttributeKey<T> key) {
+    public <T> boolean hasAttr(final AttributeKey<T> key) {
         return listener.hasAttr(key);
     }
 
@@ -295,14 +295,14 @@ public class DatagramChannelProxy implements Channel {
         return System.identityHashCode(this);
     }
 
-    protected void gracefulClose(ChannelPromise promise) {
+    protected void gracefulClose(final ChannelPromise promise) {
         listener.close(wrapPromise(promise));
     }
 
     protected DefaultChannelPipeline newChannelPipeline() {
         return new DefaultChannelPipeline(this) {
             @Override
-            protected void onUnhandledInboundException(Throwable cause) {
+            protected void onUnhandledInboundException(final Throwable cause) {
                 if (cause instanceof ClosedChannelException) {
                     ReferenceCountUtil.safeRelease(cause);
                     return;
@@ -312,7 +312,7 @@ public class DatagramChannelProxy implements Channel {
         };
     }
 
-    protected ChannelPromise wrapPromise(ChannelPromise in) {
+    protected ChannelPromise wrapPromise(final ChannelPromise in) {
         final ChannelPromise out = listener.newPromise();
         out.addListener(res -> {
             if (res.isSuccess()) {
@@ -332,7 +332,7 @@ public class DatagramChannelProxy implements Channel {
 
         @Override
         @SuppressWarnings({"unchecked", "deprecation"})
-        public <T> T getOption(ChannelOption<T> option) {
+        public <T> T getOption(final ChannelOption<T> option) {
             final T thisOption = super.getOption(option);
             if (thisOption == null) {
                 return listener.config().getOption(option);
@@ -342,7 +342,7 @@ public class DatagramChannelProxy implements Channel {
 
         @Override
         @SuppressWarnings("deprecation")
-        public <T> boolean setOption(ChannelOption<T> option, T value) {
+        public <T> boolean setOption(final ChannelOption<T> option, final T value) {
             final boolean thisOption = super.setOption(option, value);
             final boolean listenOption = listener.config().setOption(option, value);
             return thisOption || listenOption;
@@ -353,60 +353,60 @@ public class DatagramChannelProxy implements Channel {
     protected class ListnerOutboundProxy implements ChannelOutboundHandler {
 
         @Override
-        public void handlerAdded(ChannelHandlerContext ctx) {
+        public void handlerAdded(final ChannelHandlerContext ctx) {
             assert listener.eventLoop().inEventLoop();
         }
 
         @Override
-        public void bind(ChannelHandlerContext ctx, SocketAddress localAddress,
-                ChannelPromise promise) {
+        public void bind(final ChannelHandlerContext ctx, final SocketAddress localAddress,
+                final ChannelPromise promise) {
             listener.bind(localAddress, wrapPromise(promise));
         }
 
         @Override
-        public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress,
-                SocketAddress localAddress, ChannelPromise promise) {
+        public void connect(final ChannelHandlerContext ctx, final SocketAddress remoteAddress,
+                final SocketAddress localAddress, final ChannelPromise promise) {
             listener.connect(remoteAddress, localAddress, wrapPromise(promise));
         }
 
         @Override
-        public void handlerRemoved(ChannelHandlerContext ctx) {
+        public void handlerRemoved(final ChannelHandlerContext ctx) {
             // NOOP
         }
 
         @Override
-        public void disconnect(ChannelHandlerContext ctx, ChannelPromise promise) {
+        public void disconnect(final ChannelHandlerContext ctx, final ChannelPromise promise) {
             listener.disconnect(wrapPromise(promise));
         }
 
         @Override
-        public void close(ChannelHandlerContext ctx, ChannelPromise promise) {
+        public void close(final ChannelHandlerContext ctx, final ChannelPromise promise) {
             gracefulClose(promise);
         }
 
         @Override
-        public void deregister(ChannelHandlerContext ctx, ChannelPromise promise) {
+        public void deregister(final ChannelHandlerContext ctx, final ChannelPromise promise) {
             listener.deregister(wrapPromise(promise));
         }
 
         @Override
-        public void read(ChannelHandlerContext ctx) {
+        public void read(final ChannelHandlerContext ctx) {
             // NOOP
         }
 
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+        public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
             listener.write(msg, wrapPromise(promise));
         }
 
         @Override
-        public void flush(ChannelHandlerContext ctx) {
+        public void flush(final ChannelHandlerContext ctx) {
             listener.flush();
         }
 
         @SuppressWarnings("deprecation")
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
             if (cause instanceof NoRouteToHostException) {
                 return;
             }
@@ -418,58 +418,58 @@ public class DatagramChannelProxy implements Channel {
     protected class ListenerInboundProxy implements ChannelInboundHandler {
 
         @Override
-        public void channelRegistered(ChannelHandlerContext ctx) {
+        public void channelRegistered(final ChannelHandlerContext ctx) {
             pipeline.fireChannelRegistered();
         }
 
         @Override
-        public void channelUnregistered(ChannelHandlerContext ctx) {
+        public void channelUnregistered(final ChannelHandlerContext ctx) {
             pipeline.fireChannelUnregistered();
         }
 
         @Override
-        public void handlerAdded(ChannelHandlerContext ctx) {
+        public void handlerAdded(final ChannelHandlerContext ctx) {
             assert listener.eventLoop().inEventLoop();
         }
 
         @Override
-        public void channelActive(ChannelHandlerContext ctx) {
+        public void channelActive(final ChannelHandlerContext ctx) {
             // NOOP - active status managed by connection sequence
         }
 
         @Override
-        public void channelInactive(ChannelHandlerContext ctx) {
+        public void channelInactive(final ChannelHandlerContext ctx) {
             pipeline.fireChannelInactive();
         }
 
         @Override
-        public void handlerRemoved(ChannelHandlerContext ctx) {
+        public void handlerRemoved(final ChannelHandlerContext ctx) {
             // NOOP
         }
 
         @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
             pipeline.fireChannelRead(msg);
         }
 
         @Override
-        public void channelReadComplete(ChannelHandlerContext ctx) {
+        public void channelReadComplete(final ChannelHandlerContext ctx) {
             pipeline.fireChannelReadComplete();
         }
 
         @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) {
             // NOOP
         }
 
         @Override
-        public void channelWritabilityChanged(ChannelHandlerContext ctx) {
+        public void channelWritabilityChanged(final ChannelHandlerContext ctx) {
             pipeline.fireChannelWritabilityChanged();
         }
 
         @SuppressWarnings("deprecation")
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
             if (cause instanceof ClosedChannelException) {
                 return;
             }

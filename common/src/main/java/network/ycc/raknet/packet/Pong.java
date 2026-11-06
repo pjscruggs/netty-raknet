@@ -11,25 +11,25 @@ public class Pong extends SimpleFramedPacket {
         reliability = Reliability.UNRELIABLE;
     }
 
-    public Pong(long pingTimestamp, Reliability reliability) {
+    public Pong(final long pingTimestamp, final Reliability reliability) {
         this(pingTimestamp);
         this.reliability = reliability;
     }
 
-    public Pong(long pingTimestamp) {
+    public Pong(final long pingTimestamp) {
         this();
         this.pingTimestamp = pingTimestamp;
         this.pongTimestamp = System.nanoTime();
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeLong(pingTimestamp);
         buf.writeLong(pongTimestamp);
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         pingTimestamp = buf.readLong();
         if (buf.isReadable()) {
             pongTimestamp = buf.readLong();

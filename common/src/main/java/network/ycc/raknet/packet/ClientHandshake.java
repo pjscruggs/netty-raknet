@@ -15,12 +15,12 @@ public class ClientHandshake extends SimpleFramedPacket {
         reliability = Reliability.RELIABLE_ORDERED;
     }
 
-    public ClientHandshake(long pongTimestamp, InetSocketAddress address, int nExtraAddresses) {
+    public ClientHandshake(final long pongTimestamp, final InetSocketAddress address, final int nExtraAddresses) {
         this(pongTimestamp, System.nanoTime(), address, nExtraAddresses);
     }
 
-    public ClientHandshake(long pongTimestamp, long timestamp, InetSocketAddress address,
-            int nExtraAddresses) {
+    public ClientHandshake(final long pongTimestamp, final long timestamp, final InetSocketAddress address,
+            final int nExtraAddresses) {
         this();
         this.pongTimestamp = pongTimestamp;
         this.timestamp = timestamp;
@@ -29,7 +29,7 @@ public class ClientHandshake extends SimpleFramedPacket {
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         writeAddress(buf, address);
         for (int i = 0; i < nExtraAddresses; i++) {
             writeAddress(buf);
@@ -39,7 +39,7 @@ public class ClientHandshake extends SimpleFramedPacket {
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         address = readAddress(buf);
         for (nExtraAddresses = 0; buf.readableBytes() > 16; nExtraAddresses++) {
             readAddress(buf);
@@ -52,7 +52,7 @@ public class ClientHandshake extends SimpleFramedPacket {
         return pongTimestamp;
     }
 
-    public void setPongTimestamp(long pongTimestamp) {
+    public void setPongTimestamp(final long pongTimestamp) {
         this.pongTimestamp = pongTimestamp;
     }
 
@@ -60,7 +60,7 @@ public class ClientHandshake extends SimpleFramedPacket {
         return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    public void setTimestamp(final long timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -68,7 +68,7 @@ public class ClientHandshake extends SimpleFramedPacket {
         return nExtraAddresses;
     }
 
-    public void setnExtraAddresses(int nExtraAddresses) {
+    public void setnExtraAddresses(final int nExtraAddresses) {
         this.nExtraAddresses = nExtraAddresses;
     }
 

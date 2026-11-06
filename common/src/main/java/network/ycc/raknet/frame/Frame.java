@@ -27,7 +27,7 @@ public final class Frame extends AbstractReferenceCounted {
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(Frame.class);
     private static final Recycler<Frame> recycler = new Recycler<Frame>() {
         @Override
-        protected Frame newObject(Handle<Frame> handle) {
+        protected Frame newObject(final Handle<Frame> handle) {
             return new Frame(handle);
         }
     };
@@ -44,12 +44,12 @@ public final class Frame extends AbstractReferenceCounted {
     private ResourceLeakTracker<Frame> tracker = null;
     private ChannelPromise promise = null;
 
-    private Frame(Recycler.Handle<Frame> handle) {
+    private Frame(final Recycler.Handle<Frame> handle) {
         this.handle = handle;
         setRefCnt(0);
     }
 
-    public static Frame read(ByteBuf buf) {
+    public static Frame read(final ByteBuf buf) {
         final Frame out = createRaw();
         try {
             final int flags = buf.readUnsignedByte();
@@ -86,7 +86,7 @@ public final class Frame extends AbstractReferenceCounted {
         }
     }
 
-    public static Frame create(FrameData packet) {
+    public static Frame create(final FrameData packet) {
         if (packet.getReliability().isOrdered) {
             throw new IllegalArgumentException("Must provided indices for ordered data.");
         }
@@ -95,7 +95,7 @@ public final class Frame extends AbstractReferenceCounted {
         return out;
     }
 
-    public static Frame createOrdered(FrameData packet, int orderIndex, int sequenceIndex) {
+    public static Frame createOrdered(final FrameData packet, final int orderIndex, final int sequenceIndex) {
         if (!packet.getReliability().isOrdered) {
             throw new IllegalArgumentException("No indices needed for non-ordered data.");
         }
@@ -122,7 +122,7 @@ public final class Frame extends AbstractReferenceCounted {
     }
 
     @Override
-    public ReferenceCounted touch(Object hint) {
+    public ReferenceCounted touch(final Object hint) {
         if (tracker != null) {
             tracker.record(hint);
         }
@@ -130,7 +130,7 @@ public final class Frame extends AbstractReferenceCounted {
         return this;
     }
 
-    public Frame completeFragment(ByteBuf fullData) {
+    public Frame completeFragment(final ByteBuf fullData) {
         assert frameData.isFragment();
         final Frame out = createRaw();
         out.reliableIndex = reliableIndex;
@@ -142,8 +142,9 @@ public final class Frame extends AbstractReferenceCounted {
         return out;
     }
 
-    public int fragment(int splitID, int splitSize, int reliableIndex, List<Object> outList) {
+    public int fragment(final int splitID, final int splitSize, final int reliableIndex, final List<Object> outList) {
         final ByteBuf data = frameData.createData();
+        int nextReliableIndex = reliableIndex;
         try {
             final int dataSplitSize = splitSize - HEADER_SIZE;
             final int splitCountTotal =
@@ -152,7 +153,7 @@ public final class Frame extends AbstractReferenceCounted {
                     splitIndexIterator++) {
                 final int length = Math.min(dataSplitSize, data.readableBytes());
                 final Frame out = createRaw();
-                out.reliableIndex = reliableIndex;
+                out.reliableIndex = nextReliableIndex;
                 out.sequenceIndex = sequenceIndex;
                 out.orderIndex = orderIndex;
                 out.splitCount = splitCountTotal;
@@ -166,7 +167,7 @@ public final class Frame extends AbstractReferenceCounted {
                 if (out.getRoughPacketSize() > splitSize) {
                     throw new IllegalStateException("mtu fragment mismatch");
                 }
-                reliableIndex = UINT.B3.plus(reliableIndex, 1);
+                nextReliableIndex = UINT.B3.plus(nextReliableIndex, 1);
                 outList.add(out);
             }
             assert !data.isReadable();
@@ -204,7 +205,7 @@ public final class Frame extends AbstractReferenceCounted {
         return frameData.retain();
     }
 
-    public void produce(ByteBufAllocator alloc, CompositeByteBuf out) {
+    public void produce(final ByteBufAllocator alloc, final CompositeByteBuf out) {
         final ByteBuf header = alloc.ioBuffer(HEADER_SIZE, HEADER_SIZE);
         try {
             writeHeader(header);
@@ -215,12 +216,12 @@ public final class Frame extends AbstractReferenceCounted {
         }
     }
 
-    public void write(ByteBuf out) {
+    public void write(final ByteBuf out) {
         writeHeader(out);
         frameData.write(out);
     }
 
-    protected void writeHeader(ByteBuf out) {
+    protected void writeHeader(final ByteBuf out) {
         out.writeByte((getReliability().code() << 5) | (hasSplit ? SPLIT_FLAG : 0));
         out.writeShort(frameData.getDataSize() * Byte.SIZE);
 
@@ -283,7 +284,7 @@ public final class Frame extends AbstractReferenceCounted {
         return getDataSize() + HEADER_SIZE;
     }
 
-    public void setReliableIndex(int reliableIndex) {
+    public void setReliableIndex(final int reliableIndex) {
         this.reliableIndex = reliableIndex;
     }
 
@@ -295,13 +296,13 @@ public final class Frame extends AbstractReferenceCounted {
         return promise;
     }
 
-    public void setPromise(ChannelPromise promise) {
+    public void setPromise(final ChannelPromise promise) {
         this.promise = promise;
     }
 
     protected static final class FrameComparator implements java.util.Comparator<Frame> {
         @Override
-        public int compare(Frame a, Frame b) {
+        public int compare(final Frame a, final Frame b) {
             if (a == b) {
                 return 0;
             } else if (!a.getReliability().isReliable) {

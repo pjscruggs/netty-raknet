@@ -16,11 +16,11 @@ public class Reliability extends SimplePacket implements Packet {
     private Reliability() {
     }
 
-    private Reliability(int id) {
+    private Reliability(final int id) {
         entries = new REntry[]{new REntry(id)};
     }
 
-    private Reliability(IntSortedSet ids) {
+    private Reliability(final IntSortedSet ids) {
         entries = EMPTY;
         if (ids.isEmpty()) {
             return;
@@ -45,7 +45,7 @@ public class Reliability extends SimplePacket implements Packet {
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeShort(entries.length);
         for (REntry entry : entries) {
             if (entry.idStart == entry.idFinish) {
@@ -60,7 +60,7 @@ public class Reliability extends SimplePacket implements Packet {
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         entries = new REntry[buf.readUnsignedShort()];
         for (int i = 0; i < entries.length; i++) {
             boolean single = buf.readBoolean();
@@ -82,11 +82,11 @@ public class Reliability extends SimplePacket implements Packet {
         public final int idStart;
         public final int idFinish;
 
-        public REntry(int id) {
+        public REntry(final int id) {
             this(id, id);
         }
 
-        public REntry(int idstart, int idfinish) {
+        public REntry(final int idstart, final int idfinish) {
             this.idStart = idstart;
             this.idFinish = idfinish;
         }
@@ -96,11 +96,11 @@ public class Reliability extends SimplePacket implements Packet {
         public ACK() {
         }
 
-        public ACK(int id) {
+        public ACK(final int id) {
             super(id);
         }
 
-        public ACK(IntSortedSet ids) {
+        public ACK(final IntSortedSet ids) {
             super(ids);
         }
     }
@@ -109,11 +109,11 @@ public class Reliability extends SimplePacket implements Packet {
         public NACK() {
         }
 
-        public NACK(int id) {
+        public NACK(final int id) {
             super(id);
         }
 
-        public NACK(IntSortedSet ids) {
+        public NACK(final IntSortedSet ids) {
             super(ids);
         }
     }

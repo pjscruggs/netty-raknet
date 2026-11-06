@@ -15,7 +15,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
     public UnconnectedPong() {
     }
 
-    public UnconnectedPong(long clientTime, long serverId, RakNet.Magic magic, String info) {
+    public UnconnectedPong(final long clientTime, final long serverId, final RakNet.Magic magic, final String info) {
         this.clientTime = clientTime;
         this.serverId = serverId;
         this.magic = magic;
@@ -23,7 +23,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
     }
 
     @Override
-    public void encode(ByteBuf buf) {
+    public void encode(final ByteBuf buf) {
         buf.writeLong(clientTime);
         buf.writeLong(serverId);
         magic.write(buf);
@@ -31,7 +31,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
     }
 
     @Override
-    public void decode(ByteBuf buf) {
+    public void decode(final ByteBuf buf) {
         clientTime = buf.readLong();
         serverId = buf.readLong();
         magic = DefaultMagic.decode(buf);
@@ -42,7 +42,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
         return clientTime;
     }
 
-    public void setClientTime(long clientTime) {
+    public void setClientTime(final long clientTime) {
         this.clientTime = clientTime;
     }
 
@@ -50,7 +50,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
         return serverId;
     }
 
-    public void setServerId(long serverId) {
+    public void setServerId(final long serverId) {
         this.serverId = serverId;
     }
 
@@ -58,7 +58,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
         return magic;
     }
 
-    public void setMagic(RakNet.Magic magic) {
+    public void setMagic(final RakNet.Magic magic) {
         this.magic = magic;
     }
 
@@ -66,7 +66,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
         return info;
     }
 
-    public void setInfo(String info) {
+    public void setInfo(final String info) {
         this.info = info;
     }
 

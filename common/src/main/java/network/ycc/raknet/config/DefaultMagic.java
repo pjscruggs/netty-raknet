@@ -11,23 +11,23 @@ public class DefaultMagic implements RakNet.Magic {
 
     protected final byte[] magicData;
 
-    public DefaultMagic(byte[] magicData) {
+    public DefaultMagic(final byte[] magicData) {
         this.magicData = magicData;
     }
 
-    public static DefaultMagic decode(ByteBuf buf) {
+    public static DefaultMagic decode(final ByteBuf buf) {
         final byte[] magicData = new byte[16];
         buf.readBytes(magicData);
         return new DefaultMagic(magicData);
     }
 
     @Override
-    public void write(ByteBuf buf) {
+    public void write(final ByteBuf buf) {
         buf.writeBytes(magicData);
     }
 
     @Override
-    public void read(ByteBuf buf) {
+    public void read(final ByteBuf buf) {
         for (byte b : magicData) {
             if (buf.readByte() != b) {
                 throw new MagicMismatchException();
@@ -36,7 +36,7 @@ public class DefaultMagic implements RakNet.Magic {
     }
 
     @Override
-    public void verify(RakNet.Magic other) {
+    public void verify(final RakNet.Magic other) {
         final ByteBuf tmp = Unpooled.buffer(16);
         write(tmp);
         other.read(tmp);
