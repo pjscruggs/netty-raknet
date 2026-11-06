@@ -20,7 +20,7 @@ public class RakNetClient extends RakNet {
         public static final DefaultClientInitializer INSTANCE = new DefaultClientInitializer();
 
         @Override
-        protected void initChannel(Channel channel) {
+        protected void initChannel(final Channel channel) {
             channel.pipeline()
                     .addLast(FlushTickHandler.NAME, new FlushTickHandler())
                     .addLast(RawPacketCodec.NAME, RawPacketCodec.INSTANCE)

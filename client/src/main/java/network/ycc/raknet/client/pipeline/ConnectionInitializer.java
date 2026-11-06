@@ -23,7 +23,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
 
     private int cr1Retries = 0;
 
-    public ConnectionInitializer(ChannelPromise connectPromise) {
+    public ConnectionInitializer(final ChannelPromise connectPromise) {
         super(connectPromise);
     }
 
@@ -88,7 +88,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
     }
 
     @Override
-    public void sendRequest(ChannelHandlerContext ctx) {
+    public void sendRequest(final ChannelHandlerContext ctx) {
         final RakNet.Config config = RakNet.config(ctx);
         switch (state) {
             case CR1: {
@@ -112,7 +112,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
     }
 
     @Override
-    protected void removeHandler(ChannelHandlerContext ctx) {
+    protected void removeHandler(final ChannelHandlerContext ctx) {
         ctx.channel().pipeline().remove(this);
     }
 

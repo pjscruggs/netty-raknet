@@ -32,18 +32,18 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
         setupDefaultPipeline();
     }
 
-    public RakNetClientThreadedChannel(Class<? extends DatagramChannel> ioChannelType) {
+    public RakNetClientThreadedChannel(final Class<? extends DatagramChannel> ioChannelType) {
         super(new RakNetClientChannel(ioChannelType));
         setupDefaultPipeline();
     }
 
-    public RakNetClientThreadedChannel(Supplier<? extends DatagramChannel> ioChannelSupplier) {
+    public RakNetClientThreadedChannel(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         super(new RakNetClientChannel(ioChannelSupplier));
         setupDefaultPipeline();
     }
 
     @Deprecated
-    public void setProvidedEventLoop(EventLoop providedEventLoop) {
+    public void setProvidedEventLoop(final EventLoop providedEventLoop) {
         this.setProvidedParentEventLoop(providedEventLoop);
     }
 
@@ -53,14 +53,14 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
      *
      * @param providedParentEventLoop the event loop
      */
-    public void setProvidedParentEventLoop(EventLoop providedParentEventLoop) {
+    public void setProvidedParentEventLoop(final EventLoop providedParentEventLoop) {
         this.providedParentEventLoop = providedParentEventLoop;
     }
 
     private void setupDefaultPipeline() {
         parent().pipeline().addLast(new ChannelInitializer<Channel>() {
             @Override
-            protected void initChannel(Channel channel) {
+            protected void initChannel(final Channel channel) {
                 channel.pipeline().addLast(NAME_CLIENT_PARENT_THREADED_READ_HANDLER, new ParentReadHandler());
             }
         });
@@ -98,7 +98,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     }
 
     @Override
-    protected boolean isCompatible(EventLoop eventloop) {
+    protected boolean isCompatible(final EventLoop eventloop) {
         this.pendingEventLoop = eventloop;
         return true;
     }
@@ -114,7 +114,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     }
 
     @Override
-    protected void doBind(SocketAddress addr) {
+    protected void doBind(final SocketAddress addr) {
         throw new UnsupportedOperationException();
     }
 
@@ -138,7 +138,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     }
 
     @Override
-    protected void doWrite(ChannelOutboundBuffer buffer) {
+    protected void doWrite(final ChannelOutboundBuffer buffer) {
         throw new UnsupportedOperationException();
     }
 
@@ -183,12 +183,12 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
             }
 
             @Override
-            public void register(EventLoop eventLoop, ChannelPromise promise) {
+            public void register(final EventLoop eventLoop, final ChannelPromise promise) {
                 RakNetClientThreadedChannelUnsafe.this.register(eventLoop, promise);
             }
 
             @Override
-            public void bind(SocketAddress localAddress, ChannelPromise promise) {
+            public void bind(final SocketAddress localAddress, final ChannelPromise promise) {
                 registerParent();
                 final ChannelFuture future = parent().bind(localAddress);
                 future.addListener(RakNet.INTERNAL_WRITE_LISTENER);
@@ -199,17 +199,17 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
             }
 
             @Override
-            public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+            public void connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
                 RakNetClientThreadedChannelUnsafe.this.connect(remoteAddress, localAddress, promise);
             }
 
             @Override
-            public void disconnect(ChannelPromise promise) {
+            public void disconnect(final ChannelPromise promise) {
                 RakNetClientThreadedChannelUnsafe.this.disconnect(promise);
             }
 
             @Override
-            public void close(ChannelPromise promise) {
+            public void close(final ChannelPromise promise) {
                 EventLoop parentEventLoop = parent().eventLoop(); // to prevent deregister race
                 parent().close().addListener(future -> {
                     PromiseCombiner combiner = new PromiseCombiner();
@@ -231,7 +231,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
             }
 
             @Override
-            public void deregister(ChannelPromise promise) {
+            public void deregister(final ChannelPromise promise) {
                 RakNetClientThreadedChannelUnsafe.this.deregister(promise);
             }
 
@@ -241,7 +241,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
             }
 
             @Override
-            public void write(Object msg, ChannelPromise promise) {
+            public void write(final Object msg, final ChannelPromise promise) {
                 // we don't use ChannelOutboundBuffer
                 final ChannelFuture future = parent().write(msg);
                 future.addListener(RakNet.INTERNAL_WRITE_LISTENER);
@@ -268,7 +268,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
         };
 
         @Override
-        public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+        public void connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
             registerParent();
             final ChannelFuture future = parent().connect(remoteAddress, localAddress);
             future.addListener(RakNet.INTERNAL_WRITE_LISTENER);
@@ -291,7 +291,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     protected class ParentReadHandler extends ChannelInboundHandlerAdapter {
 
         @Override
-        public void channelActive(ChannelHandlerContext ctx) {
+        public void channelActive(final ChannelHandlerContext ctx) {
             RakNetClientThreadedChannel.this.eventLoop().execute(() -> {
                 RakNetClientThreadedChannel.this.active = true;
                 RakNetClientThreadedChannel.this.pipeline().fireChannelActive();
@@ -299,7 +299,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
         }
 
         @Override
-        public void channelInactive(ChannelHandlerContext ctx) {
+        public void channelInactive(final ChannelHandlerContext ctx) {
             RakNetClientThreadedChannel.this.eventLoop().execute(() -> {
                 RakNetClientThreadedChannel.this.active = false;
                 RakNetClientThreadedChannel.this.pipeline().fireChannelInactive();
@@ -307,27 +307,27 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
         }
 
         @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
             RakNetClientThreadedChannel.this.pipeline().fireChannelRead(msg);
         }
 
         @Override
-        public void channelReadComplete(ChannelHandlerContext ctx) {
+        public void channelReadComplete(final ChannelHandlerContext ctx) {
             RakNetClientThreadedChannel.this.pipeline().fireChannelReadComplete();
         }
 
         @Override
-        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) {
             RakNetClientThreadedChannel.this.pipeline().fireUserEventTriggered(evt);
         }
 
         @Override
-        public void channelWritabilityChanged(ChannelHandlerContext ctx) {
+        public void channelWritabilityChanged(final ChannelHandlerContext ctx) {
             RakNetClientThreadedChannel.this.pipeline().fireChannelWritabilityChanged();
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
             RakNetClientThreadedChannel.this.pipeline().fireExceptionCaught(cause);
         }
 

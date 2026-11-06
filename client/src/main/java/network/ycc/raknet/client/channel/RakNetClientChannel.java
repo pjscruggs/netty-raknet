@@ -27,13 +27,13 @@ public class RakNetClientChannel extends DatagramChannelProxy {
         this(NioDatagramChannel.class);
     }
 
-    public RakNetClientChannel(Supplier<? extends DatagramChannel> ioChannelSupplier) {
+    public RakNetClientChannel(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         super(ioChannelSupplier);
         connectPromise = newPromise();
         addDefaultPipeline();
     }
 
-    public RakNetClientChannel(Class<? extends DatagramChannel> ioChannelType) {
+    public RakNetClientChannel(final Class<? extends DatagramChannel> ioChannelType) {
         super(ioChannelType);
         connectPromise = newPromise();
         addDefaultPipeline();
@@ -71,8 +71,8 @@ public class RakNetClientChannel extends DatagramChannelProxy {
 
     protected class ClientHandler extends ChannelDuplexHandler {
         @Override
-        public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress,
-                SocketAddress localAddress, ChannelPromise promise) {
+        public void connect(final ChannelHandlerContext ctx, final SocketAddress remoteAddress,
+                final SocketAddress localAddress, final ChannelPromise promise) {
             try {
                 if (!(remoteAddress instanceof InetSocketAddress)) {
                     throw new IllegalArgumentException(
@@ -99,12 +99,12 @@ public class RakNetClientChannel extends DatagramChannelProxy {
         }
 
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+        public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
             listener.write(msg, wrapPromise(promise));
         }
 
         @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
             if (msg instanceof DatagramPacket) {
                 try {
                     final DatagramPacket datagram = (DatagramPacket) msg;
@@ -120,7 +120,7 @@ public class RakNetClientChannel extends DatagramChannelProxy {
         }
 
         @Override
-        public void read(ChannelHandlerContext ctx) {
+        public void read(final ChannelHandlerContext ctx) {
             // NOOP
         }
     }
