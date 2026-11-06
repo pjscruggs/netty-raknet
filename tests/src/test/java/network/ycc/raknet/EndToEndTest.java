@@ -146,8 +146,19 @@ public class EndToEndTest {
         System.gc();
     }
 
-    public void dataTest(int nSend, int maxSize, boolean brutalizeWrite, boolean brutalizeRead,
-            boolean mockTransport) throws Throwable {
+    /**
+     * Sends seeded payloads through a real or mocked datagram path and verifies reliable delivery.
+     * Eight-byte payloads identify individual reliable messages, while other sizes count bulk bytes.
+     *
+     * @param nSend number of bulk payloads to send
+     * @param maxSize upper bound of the randomly selected bulk payload size
+     * @param brutalizeWrite whether to inject loss, duplication and reordering on outgoing datagrams
+     * @param brutalizeRead whether to inject the same faults on incoming datagrams
+     * @param mockTransport whether to replace UDP sockets with paired in-memory datagram channels
+     * @throws Throwable if connection setup, delivery confirmation or cleanup fails
+     */
+    public void dataTest(final int nSend, final int maxSize, final boolean brutalizeWrite,
+            final boolean brutalizeRead, final boolean mockTransport) throws Throwable {
         Random rnd = new Random(34598);
         AtomicInteger bytesSent = new AtomicInteger(0);
         AtomicInteger bytesRecvd = new AtomicInteger(0);
@@ -160,19 +171,8 @@ public class EndToEndTest {
         MockDatagramPair mockPair = mockTransport ? new MockDatagramPair() : null;
         Brutalizer brutalizer = new Brutalizer();
 
-        Channel server = newServer(null, simpleHandler((ctx, msg) -> {
-            if (msg instanceof ByteBuf) {
-                ByteBuf buf = (ByteBuf) msg;
-                if (buf.readableBytes() == 8) {
-                    long value = buf.readLong();
-                    reliableSet.remove(value);
-                } else {
-                    numRecvd.incrementAndGet();
-                    bytesRecvd.addAndGet(buf.readableBytes());
-                }
-            }
-            ReferenceCountUtil.safeRelease(msg);
-        }), mockPair);
+        Channel server = newServer(null, simpleHandler((ctx, msg) ->
+                recordDelivery(msg, reliableSet, numRecvd, bytesRecvd)), mockPair);
         Channel client = newClient(null, mockPair);
         ChannelPromise donePromise = client.newPromise();
 
@@ -244,6 +244,32 @@ public class EndToEndTest {
         Assertions.assertEquals(0, pending.get());
         Assertions.assertEquals(nSend, numRecvd.get());
         Assertions.assertEquals(bytesSent.get(), bytesRecvd.get());
+    }
+
+    /**
+     * Separates reliable message identities from bulk delivery counters and releases every input.
+     *
+     * @param msg inbound payload or transport notification owned by this callback
+     * @param reliableSet identities still awaiting reliable delivery
+     * @param numRecvd number of received bulk payloads
+     * @param bytesRecvd total bulk payload bytes received
+     */
+    private static void recordDelivery(final Object msg,
+            final ConcurrentHashMap<Long, Object> reliableSet, final AtomicInteger numRecvd,
+            final AtomicInteger bytesRecvd) {
+        try {
+            if (msg instanceof ByteBuf) {
+                final ByteBuf buf = (ByteBuf) msg;
+                if (buf.readableBytes() == Long.BYTES) {
+                    reliableSet.remove(buf.readLong());
+                } else {
+                    numRecvd.incrementAndGet();
+                    bytesRecvd.addAndGet(buf.readableBytes());
+                }
+            }
+        } finally {
+            ReferenceCountUtil.safeRelease(msg);
+        }
     }
 
     public Channel newServer(ChannelInitializer<Channel> ioInit,
