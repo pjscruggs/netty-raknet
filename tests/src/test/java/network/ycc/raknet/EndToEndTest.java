@@ -45,11 +45,11 @@ public class EndToEndTest {
     final InetSocketAddress localSender = new InetSocketAddress("localhost", 31745);
 
     public static ChannelInitializer<Channel> simpleHandler(
-            BiConsumer<ChannelHandlerContext, Object> func) {
+            final BiConsumer<ChannelHandlerContext, Object> func) {
         return new ChannelInitializer<Channel>() {
-            protected void initChannel(Channel ch) {
+            protected void initChannel(final Channel ch) {
                 ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
                         func.accept(ctx, msg);
                     }
                 });
@@ -272,12 +272,10 @@ public class EndToEndTest {
         }
     }
 
-    public Channel newServer(ChannelInitializer<Channel> ioInit,
-            final ChannelInitializer<Channel> childInit, MockDatagramPair dgPair)
+    public Channel newServer(final ChannelInitializer<Channel> ioInit,
+            final ChannelInitializer<Channel> childInit, final MockDatagramPair dgPair)
             throws InterruptedException {
-        if (ioInit == null) {
-            ioInit = new EmptyInit();
-        }
+        final ChannelInitializer<Channel> effectiveIoInit = ioInit == null ? new EmptyInit() : ioInit;
         final ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(ioGroup, childGroup)
                 .channelFactory(() -> new RakNetServerChannel(() -> {
@@ -290,9 +288,9 @@ public class EndToEndTest {
                 .option(RakNet.SERVER_ID, 12345L)
                 .option(RakNet.RETRY_DELAY_NANOS,
                         TimeUnit.NANOSECONDS.convert(10, TimeUnit.MILLISECONDS))
-                .handler(ioInit)
+                .handler(effectiveIoInit)
                 .childHandler(new ChannelInitializer<Channel>() {
-                    protected void initChannel(Channel ch) {
+                    protected void initChannel(final Channel ch) {
                         ch.pipeline().addLast(UserDataCodec.NAME, new UserDataCodec(0xFE));
                         if (childInit != null) {
                             ch.pipeline().addLast(childInit);
@@ -302,7 +300,7 @@ public class EndToEndTest {
         return bootstrap.bind(localhost).sync().channel();
     }
 
-    public Channel newClient(ChannelInitializer<Channel> init, MockDatagramPair dgPair)
+    public Channel newClient(final ChannelInitializer<Channel> init, final MockDatagramPair dgPair)
             throws InterruptedException {
         final Bootstrap bootstrap = new Bootstrap()
                 .group(ioGroup)
@@ -317,7 +315,7 @@ public class EndToEndTest {
                 .option(RakNet.RETRY_DELAY_NANOS,
                         TimeUnit.NANOSECONDS.convert(10, TimeUnit.MILLISECONDS))
                 .handler(new ChannelInitializer<Channel>() {
-                    protected void initChannel(Channel ch) {
+                    protected void initChannel(final Channel ch) {
                         ch.pipeline().addLast(UserDataCodec.NAME, new UserDataCodec(0xFE));
                         if (init != null) {
                             ch.pipeline().addLast(init);
@@ -339,13 +337,13 @@ public class EndToEndTest {
         Object readStash = null;
 
         @Override
-        public void handlerRemoved(ChannelHandlerContext ctx) {
+        public void handlerRemoved(final ChannelHandlerContext ctx) {
             ReferenceCountUtil.safeRelease(writeStash);
             ReferenceCountUtil.safeRelease(readStash);
         }
 
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)
+        public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise)
                 throws Exception {
             if (brutalizeWrite) {
                 if (rnd.nextDouble() < orderPercent && writeStash != null) {
@@ -370,7 +368,7 @@ public class EndToEndTest {
         }
 
         @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        public void channelRead(final ChannelHandlerContext ctx, final Object msg) throws Exception {
             if (brutalizeRead) {
                 if (rnd.nextDouble() < orderPercent && readStash != null) {
                     ctx.write(readStash);

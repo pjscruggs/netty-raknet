@@ -35,14 +35,14 @@ public class MockDatagram extends AbstractChannel implements DatagramChannel {
     boolean connected = false;
     boolean closed = false;
 
-    public MockDatagram(Channel parent, InetSocketAddress localAddress,
-            InetSocketAddress remoteAddress) {
+    public MockDatagram(final Channel parent, final InetSocketAddress localAddress,
+            final InetSocketAddress remoteAddress) {
         super(parent);
         this.localAddress = localAddress;
         this.remoteAddress = remoteAddress;
         pipeline().addFirst(new ChannelOutboundHandlerAdapter() {
             @Override
-            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+            public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
                 final ByteBuf buf;
                 if (msg instanceof ByteBuf) {
                     buf = (ByteBuf) msg;
@@ -78,15 +78,15 @@ public class MockDatagram extends AbstractChannel implements DatagramChannel {
 
     protected AbstractUnsafe newUnsafe() {
         return new AbstractUnsafe() {
-            public void connect(SocketAddress remoteAddress, SocketAddress localAddress,
-                    ChannelPromise promise) {
+            public void connect(final SocketAddress remoteAddress, final SocketAddress localAddress,
+                    final ChannelPromise promise) {
                 connected = true;
                 promise.trySuccess();
             }
         };
     }
 
-    protected boolean isCompatible(EventLoop loop) {
+    protected boolean isCompatible(final EventLoop loop) {
         return true;
     }
 
@@ -98,7 +98,7 @@ public class MockDatagram extends AbstractChannel implements DatagramChannel {
         return remoteAddress;
     }
 
-    protected void doBind(SocketAddress localAddress) {
+    protected void doBind(final SocketAddress localAddress) {
         connected = true;
     }
 
@@ -114,7 +114,7 @@ public class MockDatagram extends AbstractChannel implements DatagramChannel {
 
     }
 
-    protected void doWrite(ChannelOutboundBuffer in) {
+    protected void doWrite(final ChannelOutboundBuffer in) {
 
     }
 
@@ -138,78 +138,78 @@ public class MockDatagram extends AbstractChannel implements DatagramChannel {
         return isOpen();
     }
 
-    public ChannelFuture joinGroup(InetAddress multicastAddress) {
+    public ChannelFuture joinGroup(final InetAddress multicastAddress) {
         return null;
     }
 
-    public ChannelFuture joinGroup(InetAddress multicastAddress, ChannelPromise future) {
+    public ChannelFuture joinGroup(final InetAddress multicastAddress, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture joinGroup(InetSocketAddress multicastAddress,
-            NetworkInterface networkInterface) {
+    public ChannelFuture joinGroup(final InetSocketAddress multicastAddress,
+            final NetworkInterface networkInterface) {
         return null;
     }
 
-    public ChannelFuture joinGroup(InetSocketAddress multicastAddress,
-            NetworkInterface networkInterface, ChannelPromise future) {
+    public ChannelFuture joinGroup(final InetSocketAddress multicastAddress,
+            final NetworkInterface networkInterface, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture joinGroup(InetAddress multicastAddress, NetworkInterface networkInterface,
-            InetAddress source) {
+    public ChannelFuture joinGroup(final InetAddress multicastAddress, final NetworkInterface networkInterface,
+            final InetAddress source) {
         return null;
     }
 
-    public ChannelFuture joinGroup(InetAddress multicastAddress, NetworkInterface networkInterface,
-            InetAddress source, ChannelPromise future) {
+    public ChannelFuture joinGroup(final InetAddress multicastAddress, final NetworkInterface networkInterface,
+            final InetAddress source, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture leaveGroup(InetAddress multicastAddress) {
+    public ChannelFuture leaveGroup(final InetAddress multicastAddress) {
         return null;
     }
 
-    public ChannelFuture leaveGroup(InetAddress multicastAddress, ChannelPromise future) {
+    public ChannelFuture leaveGroup(final InetAddress multicastAddress, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture leaveGroup(InetSocketAddress multicastAddress,
-            NetworkInterface networkInterface) {
+    public ChannelFuture leaveGroup(final InetSocketAddress multicastAddress,
+            final NetworkInterface networkInterface) {
         return null;
     }
 
-    public ChannelFuture leaveGroup(InetSocketAddress multicastAddress,
-            NetworkInterface networkInterface, ChannelPromise future) {
+    public ChannelFuture leaveGroup(final InetSocketAddress multicastAddress,
+            final NetworkInterface networkInterface, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture leaveGroup(InetAddress multicastAddress, NetworkInterface networkInterface,
-            InetAddress source) {
+    public ChannelFuture leaveGroup(final InetAddress multicastAddress, final NetworkInterface networkInterface,
+            final InetAddress source) {
         return null;
     }
 
-    public ChannelFuture leaveGroup(InetAddress multicastAddress, NetworkInterface networkInterface,
-            InetAddress source, ChannelPromise future) {
+    public ChannelFuture leaveGroup(final InetAddress multicastAddress, final NetworkInterface networkInterface,
+            final InetAddress source, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture block(InetAddress multicastAddress, NetworkInterface networkInterface,
-            InetAddress sourceToBlock) {
+    public ChannelFuture block(final InetAddress multicastAddress, final NetworkInterface networkInterface,
+            final InetAddress sourceToBlock) {
         return null;
     }
 
-    public ChannelFuture block(InetAddress multicastAddress, NetworkInterface networkInterface,
-            InetAddress sourceToBlock, ChannelPromise future) {
+    public ChannelFuture block(final InetAddress multicastAddress, final NetworkInterface networkInterface,
+            final InetAddress sourceToBlock, final ChannelPromise future) {
         return null;
     }
 
-    public ChannelFuture block(InetAddress multicastAddress, InetAddress sourceToBlock) {
+    public ChannelFuture block(final InetAddress multicastAddress, final InetAddress sourceToBlock) {
         return null;
     }
 
-    public ChannelFuture block(InetAddress multicastAddress, InetAddress sourceToBlock,
-            ChannelPromise future) {
+    public ChannelFuture block(final InetAddress multicastAddress, final InetAddress sourceToBlock,
+            final ChannelPromise future) {
         return null;
     }
 }

@@ -56,7 +56,7 @@ public class BehaviorTest {
         }
     }
 
-    private void tryConnect(InetSocketAddress localhost) throws InterruptedException, ExecutionException {
+    private void tryConnect(final InetSocketAddress localhost) throws InterruptedException, ExecutionException {
         final Channel serverChannel = new ServerBootstrap()
                 .group(ioGroup, childGroup)
                 .channel(RakNetServer.CHANNEL)

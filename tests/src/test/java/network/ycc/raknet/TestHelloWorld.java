@@ -40,10 +40,10 @@ public class TestHelloWorld {
                 .option(RakNet.SERVER_ID,
                         1234567L) //will be set randomly if not specified (optional)
                 .childHandler(new ChannelInitializer<Channel>() {
-                    protected void initChannel(Channel ch) {
+                    protected void initChannel(final Channel ch) {
                         ch.pipeline().addLast(UserDataCodec.NAME, new UserDataCodec(0xFE));
                         ch.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>() {
-                            protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
+                            protected void channelRead0(final ChannelHandlerContext ctx, final ByteBuf msg) {
                                 resultStr = msg.readCharSequence(msg.readableBytes(),
                                         StandardCharsets.UTF_8).toString();
                                 System.out.println(resultStr); //"Hello world!"
@@ -60,7 +60,7 @@ public class TestHelloWorld {
                         5000) //supports most normal netty ChannelOptions (optional)
                 .option(ChannelOption.SO_REUSEADDR, true) //can also set socket options (optional)
                 .handler(new ChannelInitializer<Channel>() {
-                    protected void initChannel(Channel ch) {
+                    protected void initChannel(final Channel ch) {
                         ch.pipeline().addLast(UserDataCodec.NAME, new UserDataCodec(0xFE));
                     }
                 }).connect(localhost).sync().channel();
