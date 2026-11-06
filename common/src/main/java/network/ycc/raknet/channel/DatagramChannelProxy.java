@@ -13,6 +13,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPipeline;
+import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoop;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.flush.FlushConsolidationHandler;
@@ -31,6 +32,9 @@ import java.util.function.Supplier;
 public class DatagramChannelProxy implements Channel {
 
     public static final String LISTENER_HANDLER_NAME = "rn-udp-listener-handler";
+
+    /** Identifies this pipeline separately from its underlying UDP channel in channel collections. */
+    private final ChannelId channelId = DefaultChannelId.newInstance();
 
     protected final Supplier<? extends DatagramChannel> ioChannelSupplier;
     protected final DefaultChannelPipeline pipeline;
@@ -59,9 +63,10 @@ public class DatagramChannelProxy implements Channel {
         });
     }
 
+    /** Returns the proxy's identity, which is distinct from the socket exposed by {@link #parent()}. */
     @Override
     public ChannelId id() {
-        return listener.id();
+        return channelId;
     }
 
     @Override
@@ -272,9 +277,22 @@ public class DatagramChannelProxy implements Channel {
         return listener.hasAttr(key);
     }
 
+    /** Orders channel identities without treating this proxy and its parent as the same channel. */
     @Override
-    public int compareTo(Channel o) {
-        return listener.compareTo(o);
+    public int compareTo(final Channel other) {
+        return this == other ? 0 : id().compareTo(other.id());
+    }
+
+    /** Channels own separate pipelines and compare equal only to themselves. */
+    @Override
+    public boolean equals(final Object other) {
+        return this == other;
+    }
+
+    /** Preserves identity-based hashing when channels are stored in Netty channel groups. */
+    @Override
+    public int hashCode() {
+        return System.identityHashCode(this);
     }
 
     protected void gracefulClose(ChannelPromise promise) {
