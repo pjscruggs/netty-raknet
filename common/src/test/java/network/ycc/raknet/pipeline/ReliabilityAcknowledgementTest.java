@@ -3,6 +3,7 @@ package network.ycc.raknet.pipeline;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import network.ycc.raknet.config.DefaultConfig;
 import network.ycc.raknet.packet.FrameSet;
 import network.ycc.raknet.packet.Reliability;
@@ -15,6 +16,63 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Exercises actual ACK completion and NACK recall with sparse outstanding frame sets. */
 class ReliabilityAcknowledgementTest {
+    /** A large jump and a late packet retain the newest counter without creating disabled NACKs. */
+    @Test
+    void disabledNacksSkipMissingSequencesAndKeepLatePacketAcknowledgements() {
+        final EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        final TestHandler handler = new TestHandler(channel);
+        try {
+            receive(handler, channel, UINT.B3.HALF_MAX);
+            receive(handler, channel, 7);
+            assertEquals(UINT.B3.HALF_MAX, handler.lastReceivedSeqId);
+            assertTrue(handler.nackSet.isEmpty());
+            assertTrue(handler.ackSet.contains(UINT.B3.HALF_MAX));
+            assertTrue(handler.ackSet.contains(7));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /** Enabled NACKs retain the exact missing range across wrap and remove a later arrival. */
+    @Test
+    void enabledNacksTrackWrappedMissingSequences() {
+        final EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        final TestHandler handler = new TestHandler(channel);
+        handler.config.setNACKEnabled(true);
+        handler.lastReceivedSeqId = UINT.B3.MAX_VALUE - 2;
+        try {
+            receive(handler, channel, 1);
+            assertEquals(1, handler.lastReceivedSeqId);
+            assertEquals(3, handler.nackSet.size());
+            assertTrue(handler.nackSet.contains(UINT.B3.MAX_VALUE - 1));
+            assertTrue(handler.nackSet.contains(UINT.B3.MAX_VALUE));
+            assertTrue(handler.nackSet.contains(0));
+            receive(handler, channel, 0);
+            assertFalse(handler.nackSet.contains(0));
+            assertEquals(1, handler.lastReceivedSeqId);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /**
+     * Delivers a frame set directly while preserving the caller's ownership of its input reference.
+     *
+     * @param handler reliability state under test
+     * @param channel context that receives forwarded events
+     * @param sequence datagram sequence number
+     */
+    private static void receive(final TestHandler handler, final EmbeddedChannel channel,
+            final int sequence) {
+        final FrameSet frameSet = FrameSet.create();
+        frameSet.setSeqId(sequence);
+        try {
+            handler.readFrameSet(channel.pipeline().firstContext(), frameSet);
+        } finally {
+            frameSet.release();
+        }
+    }
+
     /** Repeated full-space ACKs release each outstanding frame once without expanding the ranges. */
     @Test
     void broadAcknowledgementsReleasePendingFramesOnce() {

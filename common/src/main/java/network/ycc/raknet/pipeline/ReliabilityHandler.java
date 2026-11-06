@@ -130,24 +130,41 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         pendingFrameSets.clear();
     }
 
-    protected void readFrameSet(ChannelHandlerContext ctx, FrameSet frameSet) {
+    /**
+     * Records receipt and forwards frames without walking gaps when negative acknowledgements are off.
+     *
+     * @param ctx transport pipeline receiving the frame set
+     * @param frameSet packet whose payload references are retained for downstream handlers
+     */
+    protected void readFrameSet(final ChannelHandlerContext ctx, final FrameSet frameSet) {
         final int packetSeqId = frameSet.getSeqId();
         ackSet.add(packetSeqId);
-        if (config.isNACKEnabled())
+        if (config.isNACKEnabled()) {
             nackSet.remove(packetSeqId);
+        }
         if (UINT.B3.minusWrap(packetSeqId, lastReceivedSeqId) > 0) {
-            lastReceivedSeqId = UINT.B3.plus(lastReceivedSeqId, 1);
-            while (lastReceivedSeqId != packetSeqId) { //nack any missed packets before this one
-                if (config.isNACKEnabled())
-                    nackSet.add(lastReceivedSeqId); //add missing packets to nack set
-                lastReceivedSeqId = UINT.B3.plus(lastReceivedSeqId, 1);
+            if (config.isNACKEnabled()) {
+                queueMissingSequences(packetSeqId);
             }
+            lastReceivedSeqId = packetSeqId;
         }
         config.getMetrics().packetsIn(1);
         config.getMetrics().framesIn(frameSet.getNumPackets());
         frameSet.createFrames(ctx::fireChannelRead);
         trySendResponses(ctx);
         ctx.fireChannelReadComplete();
+    }
+
+    /**
+     * Records missing datagrams only for transports that have enabled negative acknowledgements.
+     *
+     * @param received newer sequence number ending the exclusive missing range
+     */
+    private void queueMissingSequences(final int received) {
+        for (int missing = UINT.B3.plus(lastReceivedSeqId, 1); missing != received;
+                missing = UINT.B3.plus(missing, 1)) {
+            nackSet.add(missing);
+        }
     }
 
     /**
