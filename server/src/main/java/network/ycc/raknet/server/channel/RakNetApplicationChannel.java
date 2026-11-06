@@ -20,7 +20,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
 
     private volatile boolean active = false;
 
-    protected RakNetApplicationChannel(RakNetChildChannel parent) {
+    protected RakNetApplicationChannel(final RakNetChildChannel parent) {
         super(parent);
     }
 
@@ -56,7 +56,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
     }
 
     @Override
-    protected boolean isCompatible(EventLoop eventloop) {
+    protected boolean isCompatible(final EventLoop eventloop) {
         return true;
     }
 
@@ -71,7 +71,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
     }
 
     @Override
-    protected void doBind(SocketAddress addr) {
+    protected void doBind(final SocketAddress addr) {
         throw new UnsupportedOperationException();
     }
 
@@ -95,7 +95,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
     }
 
     @Override
-    protected void doWrite(ChannelOutboundBuffer buffer) {
+    protected void doWrite(final ChannelOutboundBuffer buffer) {
         throw new UnsupportedOperationException();
     }
 
@@ -114,7 +114,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
         return this.active;
     }
 
-    void setActiveInternal(boolean active) {
+    void setActiveInternal(final boolean active) {
         this.active = active;
     }
 
@@ -153,27 +153,27 @@ public class RakNetApplicationChannel extends AbstractChannel {
             }
 
             @Override
-            public void register(EventLoop eventLoop, ChannelPromise promise) {
+            public void register(final EventLoop eventLoop, final ChannelPromise promise) {
                 RakNetApplicationChannelUnsafe.this.register(eventLoop, promise);
             }
 
             @Override
-            public void bind(SocketAddress localAddress, ChannelPromise promise) {
+            public void bind(final SocketAddress localAddress, final ChannelPromise promise) {
                 RakNetApplicationChannelUnsafe.this.bind(localAddress, promise);
             }
 
             @Override
-            public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+            public void connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
                 RakNetApplicationChannelUnsafe.this.connect(remoteAddress, localAddress, promise);
             }
 
             @Override
-            public void disconnect(ChannelPromise promise) {
+            public void disconnect(final ChannelPromise promise) {
                 RakNetApplicationChannelUnsafe.this.disconnect(promise);
             }
 
             @Override
-            public void close(ChannelPromise promise) {
+            public void close(final ChannelPromise promise) {
                 EventLoop parentEventLoop = parent().eventLoop(); // to prevent deregister race
                 parent().close().addListener(future -> {
                     PromiseCombiner combiner = new PromiseCombiner();
@@ -195,7 +195,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
             }
 
             @Override
-            public void deregister(ChannelPromise promise) {
+            public void deregister(final ChannelPromise promise) {
                 RakNetApplicationChannelUnsafe.this.deregister(promise);
             }
 
@@ -205,7 +205,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
             }
 
             @Override
-            public void write(Object msg, ChannelPromise promise) {
+            public void write(final Object msg, final ChannelPromise promise) {
                 // we don't use ChannelOutboundBuffer
                 final ChannelFuture future = parent().write(msg);
                 future.addListener(RakNet.INTERNAL_WRITE_LISTENER);
@@ -232,7 +232,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
         };
 
         @Override
-        public void connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+        public void connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
             throw new UnsupportedOperationException();
         }
     }

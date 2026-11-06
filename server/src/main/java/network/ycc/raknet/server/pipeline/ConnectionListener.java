@@ -23,7 +23,7 @@ public class ConnectionListener extends UdpPacketHandler<ConnectionRequest1> {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected void handle(ChannelHandlerContext ctx, InetSocketAddress sender, InetSocketAddress recipient, ConnectionRequest1 request) {
+    protected void handle(final ChannelHandlerContext ctx, final InetSocketAddress sender, final InetSocketAddress recipient, final ConnectionRequest1 request) {
         final RakNet.Config config = RakNet.config(ctx);
         if (config.containsProtocolVersion(request.getProtocolVersion())) {
             ReferenceCountUtil.retain(request);
@@ -43,7 +43,7 @@ public class ConnectionListener extends UdpPacketHandler<ConnectionRequest1> {
         }
     }
 
-    protected void sendResponse(ChannelHandlerContext ctx, InetSocketAddress sender, Packet packet) {
+    protected void sendResponse(final ChannelHandlerContext ctx, final InetSocketAddress sender, final Packet packet) {
         final RakNet.Config config = RakNet.config(ctx);
         final ByteBuf buf = ctx.alloc().ioBuffer(packet.sizeHint());
         try {
@@ -56,7 +56,7 @@ public class ConnectionListener extends UdpPacketHandler<ConnectionRequest1> {
         }
     }
 
-    protected void resendRequest(ChannelHandlerContext ctx, InetSocketAddress sender, ConnectionRequest1 request) {
+    protected void resendRequest(final ChannelHandlerContext ctx, final InetSocketAddress sender, final ConnectionRequest1 request) {
         final RakNet.Config config = RakNet.config(ctx);
         final ByteBuf buf = ctx.alloc().ioBuffer(request.sizeHint());
         try {

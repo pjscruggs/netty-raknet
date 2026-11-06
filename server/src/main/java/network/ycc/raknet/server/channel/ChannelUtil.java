@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class ChannelUtil {
 
-    static void applyChannelParameters(Channel channel, RakNetServerChannel.ChannelParameters parameters) {
+    static void applyChannelParameters(final Channel channel, final RakNetServerChannel.ChannelParameters parameters) {
         setChannelOptions(channel, parameters.childOptions);
         for (Map.Entry<AttributeKey<?>, Object> e: parameters.childAttrs) {
             channel.attr((AttributeKey<Object>) e.getKey()).set(e.getValue());
@@ -16,7 +16,7 @@ public class ChannelUtil {
     }
 
     static void setChannelOptions(
-            Channel channel, Map.Entry<ChannelOption<?>, Object>[] options) {
+            final Channel channel, final Map.Entry<ChannelOption<?>, Object>[] options) {
         for (Map.Entry<ChannelOption<?>, Object> e: options) {
             setChannelOption(channel, e.getKey(), e.getValue());
         }
@@ -24,7 +24,7 @@ public class ChannelUtil {
 
     @SuppressWarnings("unchecked")
     private static void setChannelOption(
-            Channel channel, ChannelOption<?> option, Object value) {
+            final Channel channel, final ChannelOption<?> option, final Object value) {
         try {
             if (!channel.config().setOption((ChannelOption<Object>) option, value)) {
                 System.out.println(String.format("Unknown channel option '%s' for channel '%s'", option, channel));

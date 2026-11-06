@@ -44,17 +44,17 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
         this(NioDatagramChannel.class);
     }
 
-    public RakNetServerChannel(Supplier<? extends DatagramChannel> ioChannelSupplier) {
+    public RakNetServerChannel(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         super(ioChannelSupplier);
         addDefaultPipeline();
     }
 
-    public RakNetServerChannel(Class<? extends DatagramChannel> ioChannelType) {
+    public RakNetServerChannel(final Class<? extends DatagramChannel> ioChannelType) {
         super(ioChannelType);
         addDefaultPipeline();
     }
 
-    public Channel getChildChannel(SocketAddress addr) {
+    public Channel getChildChannel(final SocketAddress addr) {
         if (!eventLoop().inEventLoop()) {
             throw new IllegalStateException("Method must be called from the server eventLoop!");
         }
@@ -68,7 +68,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
      *
      * @param providedApplicationEventLoop the event loop
      */
-    public void setProvidedApplicationEventLoop(EventLoop providedApplicationEventLoop) {
+    public void setProvidedApplicationEventLoop(final EventLoop providedApplicationEventLoop) {
         this.providedApplicationEventLoop = providedApplicationEventLoop;
     }
 
@@ -81,7 +81,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
     }
 
     @Override
-    protected void gracefulClose(ChannelPromise promise) {
+    protected void gracefulClose(final ChannelPromise promise) {
         final PromiseCombiner combined = new PromiseCombiner();
         final ChannelPromise childrenClosed = newPromise();
         childMap.values().forEach(child -> combined.add(child.applicationChannel.close())); // TODO we can technically close the server while keeping all child connections alive
@@ -100,15 +100,15 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
         return new ServerHandler();
     }
 
-    protected RakNetChildChannel newChild(InetSocketAddress remoteAddress, InetSocketAddress localAddress, Consumer<Channel> registerChannel) {
+    protected RakNetChildChannel newChild(final InetSocketAddress remoteAddress, final InetSocketAddress localAddress, final Consumer<Channel> registerChannel) {
         return new RakNetChildChannel(this.ioChannelSupplier, this, remoteAddress, localAddress, registerChannel);
     }
 
-    protected void removeChild(SocketAddress remoteAddress, RakNetChildChannel child) {
+    protected void removeChild(final SocketAddress remoteAddress, final RakNetChildChannel child) {
         childMap.remove(remoteAddress, child);
     }
 
-    protected void addChild(SocketAddress remoteAddress, RakNetChildChannel child) {
+    protected void addChild(final SocketAddress remoteAddress, final RakNetChildChannel child) {
         childMap.put(remoteAddress, child);
     }
 
@@ -118,8 +118,8 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
 
     protected class ServerHandler extends ChannelDuplexHandler {
         @Override
-        public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress,
-                SocketAddress localAddress, ChannelPromise promise) {
+        public void connect(final ChannelHandlerContext ctx, final SocketAddress remoteAddress,
+                final SocketAddress localAddress, final ChannelPromise promise) {
             try {
                 if (localAddress != null && !RakNetServerChannel.this.localAddress().equals(localAddress)) {
                     throw new IllegalArgumentException(
@@ -177,7 +177,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
         }
 
         @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
             if (msg instanceof DatagramPacket) {
                 final DatagramPacket datagram = (DatagramPacket) msg;
                 try {
@@ -199,12 +199,12 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
         }
 
         @Override
-        public void channelWritabilityChanged(ChannelHandlerContext ctx) {
+        public void channelWritabilityChanged(final ChannelHandlerContext ctx) {
             childMap.values().forEach(ch -> ch.pipeline().fireChannelWritabilityChanged());
             ctx.fireChannelWritabilityChanged();
         }
 
-        private ChannelFuture initChildChannel(Channel child) {
+        private ChannelFuture initChildChannel(final Channel child) {
             return getChannelParameters().childGroup.register(child);
         }
     }

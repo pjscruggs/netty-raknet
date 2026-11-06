@@ -13,7 +13,7 @@ public class DatagramConsumer extends ChannelInboundHandlerAdapter {
     public static final DatagramConsumer INSTANCE = new DatagramConsumer();
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
         if (msg instanceof DatagramPacket) {
             ReferenceCountUtil.safeRelease(msg);
         } else {

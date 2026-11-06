@@ -18,7 +18,7 @@ public abstract class UdpPacketHandler<T extends Packet> extends
     private final Class<T> type;
     private int packetId;
 
-    public UdpPacketHandler(Class<T> type) {
+    public UdpPacketHandler(final Class<T> type) {
         if (FramedPacket.class.isAssignableFrom(type)) {
             throw new IllegalArgumentException(
                     "Framed packet types cannot be directly handled by UdpPacketHandler");
@@ -29,7 +29,7 @@ public abstract class UdpPacketHandler<T extends Packet> extends
     protected abstract void handle(ChannelHandlerContext ctx, InetSocketAddress sender, InetSocketAddress recipient, T packet);
 
     @Override
-    public void handlerAdded(ChannelHandlerContext ctx) {
+    public void handlerAdded(final ChannelHandlerContext ctx) {
         final RakNet.Config config = RakNet.config(ctx);
         packetId = config.getCodec().packetIdFor(type);
         if (packetId == -1) {
@@ -38,7 +38,7 @@ public abstract class UdpPacketHandler<T extends Packet> extends
     }
 
     @Override
-    public boolean acceptInboundMessage(Object msg) {
+    public boolean acceptInboundMessage(final Object msg) {
         if (msg instanceof DatagramPacket) {
             final ByteBuf content = ((DatagramPacket) msg).content();
             return content.getUnsignedByte(content.readerIndex()) == packetId;
@@ -48,7 +48,7 @@ public abstract class UdpPacketHandler<T extends Packet> extends
 
     @SuppressWarnings("unchecked")
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) {
+    protected void channelRead0(final ChannelHandlerContext ctx, final DatagramPacket msg) {
         final RakNet.Config config = RakNet.config(ctx);
         final T packet = (T) config.getCodec().decode(msg.content());
         try {
@@ -66,7 +66,7 @@ public abstract class UdpPacketHandler<T extends Packet> extends
         return packetId;
     }
 
-    public void setPacketId(int packetId) {
+    public void setPacketId(final int packetId) {
         this.packetId = packetId;
     }
 
