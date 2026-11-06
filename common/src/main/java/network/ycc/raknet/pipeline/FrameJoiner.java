@@ -11,6 +11,7 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.TooLongFrameException;
+import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
@@ -44,7 +45,7 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
 
     /**
      * Routes an unsplit frame directly or retains its fragment in the corresponding reassembly group.
-     * A completed existing group transfers an assembled frame to the next stage.
+     * A completed group transfers an assembled frame to the next stage, including a one-fragment group.
      *
      * @param ctx connection providing allocation and the configured queued-byte ceiling
      * @param frame input frame released by the decoder framework after processing
@@ -57,23 +58,63 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
             frame.touch("Not split");
             list.add(frame.retain());
         } else {
-            final int splitID = frame.getSplitId();
-            final Builder partial = pendingPackets.get(splitID);
-            final int totalSize = frame.getSplitCount() * frame.getRoughPacketSize();
-            frame.touch("Is split");
-            if (totalSize > RakNet.config(ctx).getMaxQueuedBytes()) {
-                throw new TooLongFrameException("Fragmented frame too large");
-            } else if (partial == null) {
-                Constants.packetLossCheck(frame.getSplitCount(), "frame join elements");
-                pendingPackets.put(splitID, Builder.create(ctx.alloc(), frame));
+            join(ctx.alloc(), RakNet.config(ctx).getMaxQueuedBytes(), frame, list);
+        }
+    }
+
+    /**
+     * Validates peer-controlled fragment bounds before allocating or extending a reassembly group.
+     * A rejected group releases all accumulated references so malformed metadata cannot strand its buffers.
+     *
+     * @param allocator allocator for assembled payloads
+     * @param maxBytes configured maximum estimated size of one assembled packet
+     * @param frame borrowed input fragment, retained only while its group is incomplete
+     * @param output destination taking ownership of completed frames
+     * @throws CorruptedFrameException if fragment indices or group metadata are inconsistent
+     * @throws TooLongFrameException if the size estimate exceeds the configured byte ceiling
+     */
+    void join(final ByteBufAllocator allocator, final int maxBytes,
+            final Frame frame, final List<Object> output) {
+        final int splitID = frame.getSplitId();
+        Builder partial = pendingPackets.get(splitID);
+        try {
+            validateFragment(frame, maxBytes);
+            if (partial == null) {
+                partial = Builder.create(allocator, frame);
             } else {
                 partial.add(frame);
-                if (partial.isDone()) {
-                    pendingPackets.remove(splitID);
-                    list.add(partial.finish());
-                }
             }
-            Constants.packetLossCheck(pendingPackets.size(), "pending frame joins");
+            if (partial.isDone()) {
+                pendingPackets.remove(splitID);
+                output.add(partial.finish());
+            } else {
+                pendingPackets.put(splitID, partial);
+            }
+        } catch (RuntimeException exception) {
+            pendingPackets.remove(splitID);
+            if (partial != null) {
+                partial.release();
+            }
+            throw exception;
+        }
+    }
+
+    /**
+     * Checks split indices and computes the size estimate in a wide integer before any capacity allocation.
+     *
+     * @param frame fragment whose wire metadata is being checked
+     * @param maxBytes configured per-packet byte ceiling
+     * @throws CorruptedFrameException if the count, index or delivery mode cannot describe a split packet
+     * @throws TooLongFrameException if the full-group estimate exceeds the configured ceiling
+     */
+    private static void validateFragment(final Frame frame, final int maxBytes) {
+        if (frame.getSplitCount() <= 0 || frame.getSplitIndex() < 0
+                || frame.getSplitIndex() >= frame.getSplitCount() || !frame.getReliability().isReliable) {
+            throw new CorruptedFrameException("Invalid RakNet fragment metadata");
+        }
+        final long totalSize = (long) frame.getSplitCount() * frame.getRoughPacketSize();
+        if (totalSize > maxBytes) {
+            throw new TooLongFrameException("Fragmented frame too large");
         }
     }
 
@@ -94,12 +135,12 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
         protected FrameData.Reliability reliability;
 
         /**
-         * Allocates the pending-fragment index using the advertised group size as its capacity estimate.
+         * Starts the pending-fragment index small so a peer cannot force allocation for fragments not yet received.
          *
          * @param size expected fragment count used to size the index
          */
         private Builder(final int size) {
-            queue = new Int2ObjectOpenHashMap<>(size);
+            queue = new Int2ObjectOpenHashMap<>(Math.min(size, 16));
         }
 
         /**
@@ -111,8 +152,13 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
          */
         private static Builder create(final ByteBufAllocator alloc, final Frame frame) {
             final Builder out = new Builder(frame.getSplitCount());
-            out.init(alloc, frame);
-            return out;
+            try {
+                out.init(alloc, frame);
+                return out;
+            } catch (RuntimeException exception) {
+                out.release();
+                throw exception;
+            }
         }
 
         /**
@@ -134,14 +180,19 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
 
         /**
          * Retains a previously unseen fragment at or after the next needed position, then extends contiguous data.
-         * Reliability, channel and ordering consistency with the sample are checked by assertions.
+         * Group size, delivery mode, channel and ordering counters must match the retained sample.
          *
          * @param packet fragment whose original reference is not consumed
+         * @throws CorruptedFrameException if the fragment disagrees with the group's delivery metadata
          */
         void add(final Frame packet) {
-            assert packet.getReliability().equals(samplePacket.getReliability());
-            assert packet.getOrderChannel() == samplePacket.getOrderChannel();
-            assert packet.getOrderIndex() == samplePacket.getOrderIndex();
+            if (packet.getReliability() != samplePacket.getReliability()
+                    || packet.getOrderChannel() != samplePacket.getOrderChannel()
+                    || packet.getOrderIndex() != samplePacket.getOrderIndex()
+                    || packet.getSequenceIndex() != samplePacket.getSequenceIndex()
+                    || packet.getSplitCount() != samplePacket.getSplitCount()) {
+                throw new CorruptedFrameException("Inconsistent RakNet fragment group");
+            }
             if (!queue.containsKey(packet.getSplitIndex()) && packet.getSplitIndex() >= splitIdx) {
                 queue.put(packet.getSplitIndex(), packet.retainedFragmentData());
                 update();
