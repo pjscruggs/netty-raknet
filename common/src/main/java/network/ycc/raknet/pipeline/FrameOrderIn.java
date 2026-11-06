@@ -7,6 +7,7 @@ import network.ycc.raknet.utils.UINT;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.Arrays;
@@ -32,14 +33,27 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
         Arrays.stream(channels).forEach(OrderedChannelPacketQueue::clear);
     }
 
+    /**
+     * Routes a frame only after validating the peer-controlled ordering channel.
+     *
+     * @param ctx connection closed when a frame selects an unsupported channel
+     * @param frame input released by the decoder after successful or failed processing
+     * @param list accepted payload references transferred to the next handler
+     * @throws CorruptedFrameException if ordered traffic selects a channel outside the protocol
+     */
     @Override
-    protected void decode(ChannelHandlerContext ctx, Frame frame, List<Object> list) {
+    protected void decode(final ChannelHandlerContext ctx, final Frame frame, final List<Object> list) {
+        final int channel = frame.getOrderChannel();
+        if (frame.getReliability().isOrdered && (channel < 0 || channel >= channels.length)) {
+            ctx.close();
+            throw new CorruptedFrameException("Invalid RakNet ordering channel: " + channel);
+        }
         if (frame.getReliability().isSequenced) {
             frame.touch("Sequenced");
-            channels[frame.getOrderChannel()].decodeSequenced(frame, list);
+            channels[channel].decodeSequenced(frame, list);
         } else if (frame.getReliability().isOrdered) {
             frame.touch("Ordered");
-            channels[frame.getOrderChannel()].decodeOrdered(frame, list);
+            channels[channel].decodeOrdered(frame, list);
         } else {
             frame.touch("No order");
             list.add(frame.retainedFrameData());

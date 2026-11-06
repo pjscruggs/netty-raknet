@@ -10,6 +10,7 @@ dependencies {
     api libs.it.unimi.dsi.fastutil
     api libs.org.apache.commons.commons.math3
     compileOnly libs.io.netty.netty.all
+    testImplementation libs.io.netty.netty.all
 }
 
 description = 'Netty RakNet - Common'
