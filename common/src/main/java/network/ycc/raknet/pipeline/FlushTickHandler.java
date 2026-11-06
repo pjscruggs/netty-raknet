@@ -93,10 +93,16 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     }
 
     /** Fired from this handler to alert handlers of a missed flush tick. */
-    public class MissedFlushes {
+    public static class MissedFlushes {
+        /** Number of overdue flush intervals available to restore the receiver's burst allowance. */
         public final int nFlushes;
 
-        public MissedFlushes(int nFlushes) {
+        /**
+         * Captures the elapsed intervals without retaining the originating handler or connection.
+         *
+         * @param nFlushes positive number of missed flush intervals
+         */
+        public MissedFlushes(final int nFlushes) {
             this.nFlushes = nFlushes;
         }
     }
