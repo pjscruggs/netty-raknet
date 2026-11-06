@@ -19,10 +19,21 @@ import io.netty.channel.ChannelPromise;
 
 import java.net.InetSocketAddress;
 
+/**
+ * Negotiates the client MTU and server identity, then completes the reliable connection handshake.
+ */
 public class ConnectionInitializer extends AbstractConnectionInitializer {
 
+    /**
+     * Number of phase-one probes already sent, used to reduce subsequent probe sizes in 16-byte steps.
+     */
     private int cr1Retries = 0;
 
+    /**
+     * Associates this negotiation with the client channel's connection-completion promise.
+     *
+     * @param connectPromise completed when the handshake succeeds or its failure becomes terminal
+     */
     public ConnectionInitializer(final ChannelPromise connectPromise) {
         super(connectPromise);
     }
@@ -87,6 +98,13 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
         sendRequest(ctx);
     }
 
+    /**
+     * Sends the current offline probe, reducing phase-one probe sizes down to a 130-byte floor.
+     * Phase three needs no periodic resend here because its handshake packet uses reliable delivery.
+     *
+     * @param ctx client transport pipeline used to send the probe
+     * @throws IllegalStateException if the initializer has an unknown handshake phase
+     */
     @Override
     public void sendRequest(final ChannelHandlerContext ctx) {
         final RakNet.Config config = RakNet.config(ctx);
@@ -111,6 +129,11 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
         }
     }
 
+    /**
+     * Removes this handshake handler after success so subsequent packets reach established handlers.
+     *
+     * @param ctx client pipeline containing this initializer
+     */
     @Override
     protected void removeHandler(final ChannelHandlerContext ctx) {
         ctx.channel().pipeline().remove(this);

@@ -20,40 +20,79 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.function.Supplier;
 
+/**
+ * Runs one client RakNet connection on its UDP socket's event loop.
+ * Socket connectivity alone does not make this channel active. The RakNet handshake must also succeed.
+ */
 public class RakNetClientChannel extends DatagramChannelProxy {
+    /**
+     * Handshake result shared by the initializer, activity checks and the caller's connect operation.
+     */
     protected final ChannelPromise connectPromise;
 
+    /**
+     * Creates an unconnected client using a NIO datagram socket and the default RakNet pipeline.
+     */
     public RakNetClientChannel() {
         this(NioDatagramChannel.class);
     }
 
+    /**
+     * Creates a client around a fresh socket from the supplied factory and installs connection handlers.
+     *
+     * @param ioChannelSupplier factory that transfers ownership of an unregistered datagram channel
+     */
     public RakNetClientChannel(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         super(ioChannelSupplier);
         connectPromise = newPromise();
         addDefaultPipeline();
     }
 
+    /**
+     * Creates a client socket through the supplied channel class's no-argument constructor.
+     *
+     * @param ioChannelType datagram implementation compatible with the event loop used at registration
+     */
     public RakNetClientChannel(final Class<? extends DatagramChannel> ioChannelType) {
         super(ioChannelType);
         connectPromise = newPromise();
         addDefaultPipeline();
     }
 
+    /**
+     * Exposes completion of RakNet negotiation independently of the socket's UDP connect operation.
+     *
+     * @return shared handshake future, successful only after the server handshake is accepted
+     */
     public ChannelFuture connectFuture() {
         return connectPromise;
     }
 
+    /**
+     * Requires both an active underlying socket and a successfully completed RakNet handshake.
+     *
+     * @return whether established application traffic can use this transport
+     */
     @Override
     public boolean isActive() {
         return super.isActive() && connectPromise.isSuccess();
     }
 
+    /**
+     * Combines the reliability handler's queue-pressure flag with the UDP socket's writability.
+     * An absent RakNet flag imposes no additional restriction before reliability setup initializes it.
+     *
+     * @return whether neither transport-level nor socket-level backpressure currently blocks writes
+     */
     @Override
     public boolean isWritable() {
         final Boolean result = attr(RakNet.WRITABLE).get();
         return (result == null || result) && super.isWritable();
     }
 
+    /**
+     * Installs client socket routing and standard RakNet handlers, then closes the channel on handshake failure.
+     */
     protected void addDefaultPipeline() {
         pipeline()
                 .addLast(newClientHandler())
@@ -65,11 +104,28 @@ public class RakNetClientChannel extends DatagramChannelProxy {
         });
     }
 
+    /**
+     * Creates the connection-local bridge between the RakNet pipeline and its UDP listener.
+     *
+     * @return a fresh handler whose enclosing instance owns the client socket and handshake promise
+     */
     protected ChannelHandler newClientHandler() {
         return new ClientHandler();
     }
 
+    /**
+     * Starts negotiation after UDP connect and filters incoming datagrams to the selected remote endpoint.
+     */
     protected class ClientHandler extends ChannelDuplexHandler {
+        /**
+         * Starts UDP connection and replaces the handshake placeholder after socket connection succeeds.
+         * The supplied promise combines socket connection and RakNet negotiation. Validation failures fail it directly.
+         *
+         * @param ctx client pipeline context supplied by Netty
+         * @param remoteAddress required internet socket address of the RakNet server
+         * @param localAddress optional local bind address passed to the datagram channel
+         * @param promise caller's completion promise for the combined connection attempt
+         */
         @Override
         public void connect(final ChannelHandlerContext ctx, final SocketAddress remoteAddress,
                 final SocketAddress localAddress, final ChannelPromise promise) {
@@ -98,11 +154,26 @@ public class RakNetClientChannel extends DatagramChannelProxy {
             }
         }
 
+        /**
+         * Transfers an encoded message to the UDP socket and bridges its write result to the caller's promise.
+         *
+         * @param ctx client pipeline context supplied by Netty
+         * @param msg outbound message whose ownership transfers to the listener
+         * @param promise completed with the listener's write outcome
+         */
         @Override
         public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
             listener.write(msg, wrapPromise(promise));
         }
 
+        /**
+         * Forwards a retained payload only when its datagram sender matches the connected peer or is unspecified.
+         * Every datagram envelope is released here, including packets from other senders. Non-datagram messages
+         * are forwarded unchanged with their existing ownership.
+         *
+         * @param ctx next stage of the client decoding pipeline
+         * @param msg inbound envelope or other message owned by this handler
+         */
         @Override
         public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
             if (msg instanceof DatagramPacket) {
@@ -119,6 +190,11 @@ public class RakNetClientChannel extends DatagramChannelProxy {
             }
         }
 
+        /**
+         * Ignores explicit reads at this layer because the underlying datagram channel drives socket reads.
+         *
+         * @param ctx outbound client context whose read request is consumed
+         */
         @Override
         public void read(final ChannelHandlerContext ctx) {
             // NOOP
