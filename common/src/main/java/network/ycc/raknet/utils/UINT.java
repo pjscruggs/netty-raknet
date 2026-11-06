@@ -2,15 +2,20 @@ package network.ycc.raknet.utils;
 
 import it.unimi.dsi.fastutil.ints.IntComparator;
 
+/** Provides modular arithmetic for the unsigned counters used in RakNet headers. */
 public class UINT {
 
+    /** Prevents construction of the static wire-counter helpers. */
     private UINT() {
     }
 
+    /** Normalizes and wraps arithmetic in the unsigned 16-bit sequence space. */
     public static class B2 {
 
+        /** Mask selecting the low sixteen bits and the largest encoded 16-bit value. */
         public static final int MAX_VALUE = ((1 << (Byte.SIZE * 2)) - 1);
 
+        /** Prevents construction of the static 16-bit arithmetic helper. */
         private B2() {
         }
 
@@ -38,11 +43,16 @@ public class UINT {
 
     }
 
+    /** Normalizes 24-bit datagram counters and compares positions within a bounded serial-number window. */
     public static class B3 {
 
+        /** Mask selecting the low twenty-four bits and the largest encoded 24-bit value. */
         public static final int MAX_VALUE = (1 << (Byte.SIZE * 3)) - 1;
+        /** Largest strictly shorter-than-half-cycle positive distance used to decide serial ordering. */
         public static final int HALF_MAX = MAX_VALUE / 2;
+        /** Circular-order comparator for IDs confined to one active window shorter than half a cycle. */
         public static final IntComparator COMPARATOR = new Comparator();
+        /** Prevents construction of the static 24-bit arithmetic helper. */
         private B3() {
         }
 
@@ -87,7 +97,18 @@ public class UINT {
             return dist;
         }
 
+        /**
+         * Orders serial numbers by their shortest circular distance, not by unsigned numeric magnitude.
+         * Use only for an active window shorter than half the sequence space to retain transitive ordering.
+         */
         protected static class Comparator implements IntComparator {
+            /**
+             * Compares two counters by the sign of their shortest wrapped difference.
+             *
+             * @param a first 24-bit counter
+             * @param b second 24-bit counter
+             * @return negative, zero or positive according to circular serial order
+             */
             @Override
             public final int compare(final int a, final int b) {
                 final int d = UINT.B3.minusWrap(a, b);
