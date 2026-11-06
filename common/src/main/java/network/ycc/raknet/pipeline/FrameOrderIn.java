@@ -32,6 +32,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
         Arrays.stream(channels).forEach(OrderedChannelPacketQueue::clear);
     }
 
+    @Override
     protected void decode(ChannelHandlerContext ctx, Frame frame, List<Object> list) {
         if (frame.getReliability().isSequenced) {
             frame.touch("Sequenced");

@@ -47,6 +47,7 @@ public abstract class UdpPacketHandler<T extends Packet> extends
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     protected void channelRead0(ChannelHandlerContext ctx, DatagramPacket msg) {
         final RakNet.Config config = RakNet.config(ctx);
         final T packet = (T) config.getCodec().decode(msg.content());

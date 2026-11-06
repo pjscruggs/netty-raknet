@@ -31,6 +31,7 @@ public class ConnectionRequest extends SimpleFramedPacket implements Packet.Clie
         buf.readBoolean(); //use security
     }
 
+    @Override
     public long getClientId() {
         return clientId;
     }

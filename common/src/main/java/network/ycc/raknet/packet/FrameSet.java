@@ -84,6 +84,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         return this;
     }
 
+    @Override
     protected void deallocate() {
         frames.forEach(Frame::release);
         frames.clear();
@@ -139,6 +140,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
         });
     }
 
+    @Override
     public ReferenceCounted touch(Object hint) {
         if (tracker != null) {
             tracker.record(hint);

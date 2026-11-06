@@ -18,6 +18,7 @@ public class FrameOrderOut extends MessageToMessageEncoder<FramedPacket> {
     protected int[] nextOrderIndex = new int[8];
     protected int[] nextSequenceIndex = new int[8];
 
+    @Override
     protected void encode(ChannelHandlerContext ctx, FramedPacket packet, List<Object> list) {
         final RakNet.Config config = RakNet.config(ctx);
         final FrameData data = config.getCodec().encode(packet, ctx.alloc());

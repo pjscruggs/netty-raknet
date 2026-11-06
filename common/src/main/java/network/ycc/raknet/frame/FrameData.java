@@ -83,6 +83,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
         return (FrameData) super.retain();
     }
 
+    @Override
     protected void deallocate() {
         if (data != null) {
             data.release();
@@ -102,6 +103,7 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
                 fragment ? "n/a" : String.format("%02x", getPacketId()));
     }
 
+    @Override
     public ReferenceCounted touch(Object hint) {
         if (tracker != null) {
             tracker.record(hint);
@@ -117,20 +119,28 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
 
     public int getDataSize() {
         return data.readableBytes();
-    }    public FramedPacket.Reliability getReliability() {
+    }
+
+    @Override
+    public FramedPacket.Reliability getReliability() {
         return reliability;
     }
 
     public boolean isFragment() {
         return fragment;
-    }    public void setReliability(FramedPacket.Reliability reliability) {
+    }
+
+    @Override
+    public void setReliability(FramedPacket.Reliability reliability) {
         this.reliability = reliability;
     }
 
+    @Override
     public int getOrderChannel() {
         return orderId;
     }
 
+    @Override
     public void setOrderChannel(int orderChannel) {
         this.orderId = orderChannel;
     }

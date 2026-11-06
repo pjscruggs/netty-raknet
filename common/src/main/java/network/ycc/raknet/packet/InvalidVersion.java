@@ -20,12 +20,14 @@ public class InvalidVersion extends SimplePacket implements Packet {
         this.serverId = serverId;
     }
 
+    @Override
     public void encode(ByteBuf buf) {
         buf.writeByte(version);
         magic.write(buf);
         buf.writeLong(serverId);
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         version = buf.readUnsignedByte();
         magic = DefaultMagic.decode(buf);

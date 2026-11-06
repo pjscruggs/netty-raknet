@@ -19,11 +19,13 @@ public class NoFreeConnections extends SimplePacket implements Packet {
         this.serverId = serverId;
     }
 
+    @Override
     public void encode(ByteBuf buf) {
         magic.write(buf);
         buf.writeLong(serverId);
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();

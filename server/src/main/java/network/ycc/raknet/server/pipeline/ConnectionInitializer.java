@@ -101,6 +101,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public void sendRequest(ChannelHandlerContext ctx) {
         assert ctx.channel().eventLoop().inEventLoop();
 
@@ -127,6 +128,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
         }
     }
 
+    @Override
     protected void removeHandler(ChannelHandlerContext ctx) {
         ctx.channel().pipeline().replace(NAME, NAME, new RestartConnectionHandler());
     }

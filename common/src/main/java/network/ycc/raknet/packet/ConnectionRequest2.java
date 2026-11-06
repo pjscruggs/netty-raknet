@@ -57,6 +57,7 @@ public class ConnectionRequest2 extends SimplePacket implements Packet, Packet.C
         this.mtu = mtu;
     }
 
+    @Override
     public long getClientId() {
         return clientId;
     }

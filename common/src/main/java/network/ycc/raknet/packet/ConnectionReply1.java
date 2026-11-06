@@ -14,6 +14,7 @@ public class ConnectionReply1 extends AbstractConnectionReply implements Packet 
         super(magic, mtu, serverId);
     }
 
+    @Override
     public void encode(ByteBuf buf) {
         magic.write(buf);
         buf.writeLong(serverId);
@@ -21,6 +22,7 @@ public class ConnectionReply1 extends AbstractConnectionReply implements Packet 
         buf.writeShort(mtu);
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();

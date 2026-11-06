@@ -19,6 +19,7 @@ public final class RakNetServer extends RakNet {
     public static class DefaultDatagramInitializer extends ChannelInitializer<Channel> {
         public static final ChannelInitializer<Channel> INSTANCE = new DefaultDatagramInitializer();
 
+        @Override
         protected void initChannel(Channel channel) {
             channel.pipeline().addLast(ConnectionListener.NAME, new ConnectionListener());
             //must defer so we can add it before the ServerBootstrap acceptor
@@ -30,6 +31,7 @@ public final class RakNetServer extends RakNet {
     public static class DefaultChildInitializer extends ChannelInitializer<Channel> {
         public static final ChannelInitializer<Channel> INSTANCE = new DefaultChildInitializer();
 
+        @Override
         protected void initChannel(Channel channel) {
             channel.pipeline()
                     .addLast(FlushTickHandler.NAME, new FlushTickHandler())

@@ -80,6 +80,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
         sendRequest(ctx);
     }
 
+    @Override
     public void sendRequest(ChannelHandlerContext ctx) {
         final RakNet.Config config = RakNet.config(ctx);
         switch (state) {
@@ -103,6 +104,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
         }
     }
 
+    @Override
     protected void removeHandler(ChannelHandlerContext ctx) {
         ctx.channel().pipeline().remove(this);
     }

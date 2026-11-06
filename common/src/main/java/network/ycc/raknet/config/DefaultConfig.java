@@ -115,126 +115,156 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
 
         return false;
     }
+    @Override
     public RakNet.MetricsLogger getMetrics() {
         return metrics;
     }
 
+    @Override
     public void setMetrics(RakNet.MetricsLogger metrics) {
         this.metrics = metrics;
     }
 
+    @Override
     public long getServerId() {
         return serverId;
     }
 
+    @Override
     public void setServerId(long serverId) {
         this.serverId = serverId;
     }
 
+    @Override
     public long getClientId() {
         return clientId;
     }
 
+    @Override
     public void setClientId(long clientId) {
         this.clientId = clientId;
     }
 
+    @Override
     public int getMTU() {
         return mtu;
     }
 
+    @Override
     public void setMTU(int mtu) {
         this.mtu = mtu;
     }
 
+    @Override
     public long getRetryDelayNanos() {
         return retryDelayNanos;
     }
 
+    @Override
     public void setRetryDelayNanos(long retryDelayNanos) {
         this.retryDelayNanos = retryDelayNanos;
     }
 
+    @Override
     public long getRTTNanos() {
         final long rtt = (long) rttStats.getMean();
         return Math.max(rtt, 1);
     }
 
+    @Override
     public void setRTTNanos(long rtt) {
         rttStats.clear();
         rttStats.addValue(rtt);
     }
 
+    @Override
     public long getRTTStdDevNanos() {
         return (long) rttStats.getStandardDeviation(); //ns
     }
 
+    @Override
     public void updateRTTNanos(long rttSample) {
         rttStats.addValue(rttSample);
         metrics.measureRTTns(getRTTNanos());
         metrics.measureRTTnsStdDev(getRTTStdDevNanos());
     }
 
+    @Override
     public int getMaxPendingFrameSets() {
         return maxPendingFrameSets;
     }
 
+    @Override
     public void setMaxPendingFrameSets(int maxPendingFrameSets) {
         this.maxPendingFrameSets = maxPendingFrameSets;
     }
 
+    @Override
     public int getDefaultPendingFrameSets() {
         return defaultPendingFrameSets;
     }
 
+    @Override
     public void setDefaultPendingFrameSets(int defaultPendingFrameSets) {
         this.defaultPendingFrameSets = defaultPendingFrameSets;
     }
 
+    @Override
     public int getMaxQueuedBytes() {
         return maxQueuedBytes;
     }
 
+    @Override
     public void setMaxQueuedBytes(int maxQueuedBytes) {
         this.maxQueuedBytes = maxQueuedBytes;
     }
 
+    @Override
     public RakNet.Magic getMagic() {
         return magic;
     }
 
+    @Override
     public void setMagic(RakNet.Magic magic) {
         this.magic = magic;
     }
 
+    @Override
     public RakNet.Codec getCodec() {
         return codec;
     }
 
+    @Override
     public void setCodec(RakNet.Codec codec) {
         this.codec = codec;
     }
 
+    @Override
     public int[] getProtocolVersions() {
         return protocolVersions;
     }
 
+    @Override
     public void setprotocolVersions(int[] protocolVersions) {
         this.protocolVersions = protocolVersions;
     }
 
+    @Override
     public int getMaxConnections() {
         return maxConnections;
     }
 
+    @Override
     public void setMaxConnections(int maxConnections) {
         this.maxConnections = maxConnections;
     }
 
+    @Override
     public int getProtocolVersion() {
         return protocolVersion;
     }
 
+    @Override
     public void setProtocolVersion(int protocolVersion) {
         this.protocolVersion = protocolVersion;
     }

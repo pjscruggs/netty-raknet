@@ -19,6 +19,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
         this.address = address;
     }
 
+    @Override
     public void encode(ByteBuf buf) {
         magic.write(buf);
         buf.writeLong(serverId);
@@ -31,6 +32,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
         buf.writeBoolean(NEEDS_SECURITY);
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();

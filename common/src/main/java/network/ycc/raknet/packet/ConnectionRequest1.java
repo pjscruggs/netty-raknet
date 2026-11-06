@@ -20,12 +20,14 @@ public class ConnectionRequest1 extends SimplePacket implements Packet {
         this.mtu = mtu;
     }
 
+    @Override
     public void encode(ByteBuf buf) {
         magic.write(buf);
         buf.writeByte(protocolVersion);
         buf.writeZero(mtu - buf.readableBytes());
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         mtu = buf.readableBytes();
         magic = DefaultMagic.decode(buf);

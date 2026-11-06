@@ -96,6 +96,7 @@ public class DefaultCodec implements RakNet.Codec {
         idFromClass.defaultReturnValue(-1);
     }
 
+    @Override
     public FrameData encode(FramedPacket packet, ByteBufAllocator alloc) {
         if (packet instanceof FrameData) {
             return ((FrameData) packet).retain();
@@ -113,6 +114,7 @@ public class DefaultCodec implements RakNet.Codec {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public void encode(Packet packet, ByteBuf out) {
         if (!idFromClass.containsKey(packet.getClass())) {
             throw new IllegalArgumentException("Unknown encoder for " + packet.getClass());
@@ -123,6 +125,7 @@ public class DefaultCodec implements RakNet.Codec {
         encoder.accept(packet, out);
     }
 
+    @Override
     public ByteBuf produceEncoded(Packet packet, ByteBufAllocator alloc) {
         if (packet instanceof FrameSet && ((FrameSet) packet).getRoughSize() >= 128) {
             return ((FrameSet) packet).produce(alloc);
@@ -136,6 +139,7 @@ public class DefaultCodec implements RakNet.Codec {
         }
     }
 
+    @Override
     public Packet decode(ByteBuf buf) {
         final int packetId = buf.getUnsignedByte(buf.readerIndex());
         final Function<ByteBuf, ? extends Packet> decoder = decoders.get(packetId);
@@ -145,6 +149,7 @@ public class DefaultCodec implements RakNet.Codec {
         return decoder.apply(buf);
     }
 
+    @Override
     public FramedPacket decode(FrameData data) {
         final int packetId = data.getPacketId();
         final Function<ByteBuf, ? extends Packet> decoder = decoders.get(packetId);
@@ -162,6 +167,7 @@ public class DefaultCodec implements RakNet.Codec {
         }
     }
 
+    @Override
     public int packetIdFor(Class<? extends Packet> type) {
         return idFromClass.getInt(type);
     }

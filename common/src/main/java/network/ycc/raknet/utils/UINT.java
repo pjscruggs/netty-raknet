@@ -52,6 +52,7 @@ public class UINT {
         }
 
         protected static class Comparator implements IntComparator {
+            @Override
             public final int compare(final int a, final int b) {
                 final int d = UINT.B3.minusWrap(a, b);
                 return d < 0 ? -1 : (d == 0 ? 0 : 1);

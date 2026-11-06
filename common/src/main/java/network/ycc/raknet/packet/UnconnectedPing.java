@@ -11,12 +11,14 @@ public class UnconnectedPing extends SimplePacket implements Packet {
     private long clientTime;
     private long clientId;
 
+    @Override
     public void encode(ByteBuf buf) {
         buf.writeLong(clientTime);
         magic.write(buf);
         buf.writeLong(clientId);
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         clientTime = buf.readLong();
         magic = DefaultMagic.decode(buf);

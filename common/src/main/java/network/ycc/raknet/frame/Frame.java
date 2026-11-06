@@ -300,6 +300,7 @@ public final class Frame extends AbstractReferenceCounted {
     }
 
     protected static final class FrameComparator implements java.util.Comparator<Frame> {
+        @Override
         public int compare(Frame a, Frame b) {
             if (a == b) {
                 return 0;

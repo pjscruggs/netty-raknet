@@ -19,6 +19,7 @@ public class RakNetClient extends RakNet {
     public static class DefaultClientInitializer extends ChannelInitializer<Channel> {
         public static final DefaultClientInitializer INSTANCE = new DefaultClientInitializer();
 
+        @Override
         protected void initChannel(Channel channel) {
             channel.pipeline()
                     .addLast(FlushTickHandler.NAME, new FlushTickHandler())

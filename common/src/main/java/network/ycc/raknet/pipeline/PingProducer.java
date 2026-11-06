@@ -14,6 +14,7 @@ public class PingProducer implements ChannelHandler {
 
     ScheduledFuture<?> pingTask = null;
 
+    @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
         pingTask = ctx.channel().eventLoop().scheduleAtFixedRate(
                 () -> ctx.writeAndFlush(new Ping()),
@@ -21,6 +22,7 @@ public class PingProducer implements ChannelHandler {
         );
     }
 
+    @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         if (pingTask != null) {
             pingTask.cancel(false);
@@ -29,6 +31,7 @@ public class PingProducer implements ChannelHandler {
     }
 
     @SuppressWarnings("deprecation")
+    @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         ctx.fireExceptionCaught(cause);
     }

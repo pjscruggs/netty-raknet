@@ -23,12 +23,14 @@ public class UserDataCodec extends MessageToMessageCodec<FrameData, ByteBuf> {
         this.packetId = packetId;
     }
 
+    @Override
     protected void encode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> out) {
         if (buf.isReadable()) {
             out.add(FrameData.create(ctx.alloc(), packetId, buf));
         }
     }
 
+    @Override
     protected void decode(ChannelHandlerContext ctx, FrameData packet, List<Object> out) {
         assert !packet.isFragment();
         if (packet.getDataSize() > 0) {

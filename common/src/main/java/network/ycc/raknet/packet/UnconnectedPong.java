@@ -22,6 +22,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
         this.info = info;
     }
 
+    @Override
     public void encode(ByteBuf buf) {
         buf.writeLong(clientTime);
         buf.writeLong(serverId);
@@ -29,6 +30,7 @@ public class UnconnectedPong extends SimplePacket implements Packet {
         writeString(buf, info);
     }
 
+    @Override
     public void decode(ByteBuf buf) {
         clientTime = buf.readLong();
         serverId = buf.readLong();

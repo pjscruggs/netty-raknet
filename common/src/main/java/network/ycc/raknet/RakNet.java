@@ -181,6 +181,7 @@ public class RakNet {
     public static class ReliableFrameHandling extends ChannelInitializer<Channel> {
         public static final ReliableFrameHandling INSTANCE = new ReliableFrameHandling();
 
+        @Override
         protected void initChannel(Channel channel) {
             channel.pipeline()
                     .addLast(ReliabilityHandler.NAME,   new ReliabilityHandler())
@@ -195,6 +196,7 @@ public class RakNet {
     public static class PacketHandling extends ChannelInitializer<Channel> {
         public static final PacketHandling INSTANCE = new PacketHandling();
 
+        @Override
         protected void initChannel(Channel channel) {
             channel.pipeline()
                     .addLast(DisconnectHandler.NAME,    DisconnectHandler.INSTANCE)

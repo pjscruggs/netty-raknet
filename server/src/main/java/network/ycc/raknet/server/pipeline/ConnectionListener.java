@@ -22,6 +22,7 @@ public class ConnectionListener extends UdpPacketHandler<ConnectionRequest1> {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     protected void handle(ChannelHandlerContext ctx, InetSocketAddress sender, InetSocketAddress recipient, ConnectionRequest1 request) {
         final RakNet.Config config = RakNet.config(ctx);
         if (config.containsProtocolVersion(request.getProtocolVersion())) {

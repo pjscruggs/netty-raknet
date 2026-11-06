@@ -13,6 +13,7 @@ public class PongHandler extends SimpleChannelInboundHandler<Pong> {
     public static final String NAME = "rn-pong";
     public static final PongHandler INSTANCE = new PongHandler();
 
+    @Override
     protected void channelRead0(ChannelHandlerContext ctx, Pong pong) {
         if (!pong.getReliability().isReliable) {
             final RakNet.Config config = RakNet.config(ctx);

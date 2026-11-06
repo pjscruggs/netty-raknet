@@ -21,10 +21,12 @@ public class DefaultMagic implements RakNet.Magic {
         return new DefaultMagic(magicData);
     }
 
+    @Override
     public void write(ByteBuf buf) {
         buf.writeBytes(magicData);
     }
 
+    @Override
     public void read(ByteBuf buf) {
         for (byte b : magicData) {
             if (buf.readByte() != b) {
@@ -33,6 +35,7 @@ public class DefaultMagic implements RakNet.Magic {
         }
     }
 
+    @Override
     public void verify(RakNet.Magic other) {
         final ByteBuf tmp = Unpooled.buffer(16);
         write(tmp);

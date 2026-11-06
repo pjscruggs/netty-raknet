@@ -55,50 +55,61 @@ public class RakNetApplicationChannel extends AbstractChannel {
         return ((RakNetApplicationChannelUnsafe) super.unsafe()).wrapped;
     }
 
+    @Override
     protected boolean isCompatible(EventLoop eventloop) {
         return true;
     }
 
+    @Override
     protected SocketAddress localAddress0() {
         return parent().localAddress();
     }
 
+    @Override
     protected SocketAddress remoteAddress0() {
         return parent().remoteAddress();
     }
 
+    @Override
     protected void doBind(SocketAddress addr) {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     protected void doDisconnect() {
 //        close();
         this.active = false;
         parent().close();
     }
 
+    @Override
     protected void doClose() {
 //        close();
         this.active = false;
         parent().close();
     }
 
+    @Override
     protected void doBeginRead() {
         // NOOP
     }
 
+    @Override
     protected void doWrite(ChannelOutboundBuffer buffer) {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public RakNet.Config config() {
         return parent().config();
     }
 
+    @Override
     public boolean isOpen() {
         return parent().isOpen();
     }
 
+    @Override
     public boolean isActive() {
         return this.active;
     }
@@ -107,6 +118,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
         this.active = active;
     }
 
+    @Override
     public ChannelMetadata metadata() {
         return parent().metadata();
     }
