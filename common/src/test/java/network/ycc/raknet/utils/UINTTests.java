@@ -9,7 +9,9 @@ import it.unimi.dsi.fastutil.ints.IntBidirectionalIterator;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSortedSet;
 
+/** Exercises 24-bit modular arithmetic with reproducible samples spanning counter wraparound. */
 public class UINTTests {
+    /** Signed distance must recover an offset smaller than half the sequence space after wrapped addition. */
     @Test
     public void testMinusWrap() {
         Random random = new Random(0);
@@ -22,6 +24,7 @@ public class UINTTests {
         }
     }
 
+    /** Unsigned subtraction must differ from signed circular distance for at least one negative offset. */
     @Test
     public void testMinusFail() {
         Random random = new Random(0);
@@ -39,6 +42,7 @@ public class UINTTests {
         Assertions.assertTrue(hasFailed);
     }
 
+    /** Checks adjacent iterator values against circular ordering, without claiming a global linear order. */
     @Test
     public void testCompareIterator() {
         Random random = new Random(0);
