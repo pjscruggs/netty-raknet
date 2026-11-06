@@ -9,6 +9,7 @@ plugins {
 dependencies {
     api project(':netty-raknet-common')
     compileOnly libs.io.netty.netty.all
+    testImplementation libs.io.netty.netty.all
 }
 
 description = 'Netty RakNet - Client'

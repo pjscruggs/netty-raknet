@@ -27,11 +27,20 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
         super(connectPromise);
     }
 
+    /**
+     * Advances the client handshake or completes a remote rejection immediately in every phase.
+     *
+     * @param ctx client connection closed when the server rejects its handshake
+     * @param msg decoded server handshake response
+     * @throws IllegalStateException if this initializer has an unsupported internal state
+     */
     @Override
-    public void channelRead0(ChannelHandlerContext ctx, Packet msg) {
+    public void channelRead0(final ChannelHandlerContext ctx, final Packet msg) {
         final RakNet.Config config = RakNet.config(ctx);
         if (msg instanceof ConnectionFailed) {
-            throw new IllegalStateException("Connection failed");
+            fail(new ChannelException("RakNet connection failed"));
+            ctx.close();
+            return;
         }
         switch (state) {
             case CR1: {
@@ -55,8 +64,6 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
                     state = State.CR3;
                     final Packet packet = new ConnectionRequest(config.getClientId());
                     ctx.writeAndFlush(packet).addListener(RakNet.INTERNAL_WRITE_LISTENER);
-                } else if (msg instanceof ConnectionFailed) {
-                    fail(new ChannelException("RakNet connection failed"));
                 }
                 break;
             }
