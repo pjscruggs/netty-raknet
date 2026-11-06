@@ -5,7 +5,6 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOutboundHandler;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.flush.FlushConsolidationHandler;
 import network.ycc.raknet.RakNet;
@@ -297,12 +296,19 @@ public class RakNetChildChannel extends AbstractChannel {
     }
 
     /**
-     * Marks the transport closed and requests application closure when that wrapper has been registered.
-     * Standalone-listener shutdown is handled by the outbound bridge installed in the transport pipeline.
+     * Marks the transport closed and releases its socket even if negotiation never installed the listener bridge.
+     * Registered sockets normally close through the outbound path before this fallback runs.
      */
     @Override
     protected void doClose() {
         open = false;
+        if (listener.isOpen()) {
+            if (listener.isRegistered()) {
+                listener.close();
+            } else {
+                listener.unsafe().closeForcibly();
+            }
+        }
         if (this.applicationChannel.isRegistered()) {
             this.applicationChannel.close();
         }
@@ -416,7 +422,7 @@ public class RakNetChildChannel extends AbstractChannel {
         this.eventLoop().register(this.listener).addListener(future -> {
             if (future.isSuccess()) {
                 listener.connect(this.remoteAddress, this.localAddress).addListener(future1 -> {
-                    if (future1.isDone()) {
+                    if (future1.isSuccess()) {
                         channelPromise.trySuccess();
                     } else {
                         channelPromise.setFailure(future1.cause());
@@ -450,13 +456,45 @@ public class RakNetChildChannel extends AbstractChannel {
     }
 
     /**
+     * Closes the owned UDP socket before completing transport closure, including sockets not yet registered.
+     * This is shared by the initial writer and the established-socket bridge so handshake timing cannot bypass cleanup.
+     *
+     * @param ctx transport context used to continue closure after socket cleanup
+     * @param promise original transport close completion
+     */
+    private void closeStandaloneListener(final ChannelHandlerContext ctx, final ChannelPromise promise) {
+        if (listener.isRegistered()) {
+            listener.close().addListener(future -> {
+                if (!future.isSuccess()) {
+                    ctx.fireExceptionCaught(future.cause());
+                }
+                ctx.close(promise);
+            });
+        } else {
+            listener.unsafe().closeForcibly();
+            ctx.close(promise);
+        }
+    }
+
+    /**
      * Sends initial peer datagrams through the shared server listener before the standalone socket takes over.
      */
     protected class WriteHandler extends ChannelOutboundHandlerAdapter {
         /**
          * Whether this handler has forwarded a buffer since its last shared-listener flush.
          */
-        protected boolean needsFlush = false;
+        protected boolean needsFlush;
+
+        /**
+         * Releases the peer socket even when shutdown arrives before standalone socket activation.
+         *
+         * @param ctx initial writer context continuing transport closure
+         * @param promise completed after socket and transport cleanup
+         */
+        @Override
+        public void close(final ChannelHandlerContext ctx, final ChannelPromise promise) {
+            closeStandaloneListener(ctx, promise);
+        }
 
         /**
          * Wraps encoded buffers in addressed datagrams and transfers them to the shared server listener.
@@ -510,7 +548,7 @@ public class RakNetChildChannel extends AbstractChannel {
 
         /**
          * Requests application registration and standalone socket setup before scheduling application activation.
-         * If the application is still unregistered when setup's callback runs, activation joins the deferred queue.
+         * Failed socket setup closes the peer without activation. Successful setup defers activation until application registration.
          *
          * @param ctx transport context reporting handshake-driven activity
          * @throws Exception if registration or listener setup throws during this callback
@@ -519,6 +557,11 @@ public class RakNetChildChannel extends AbstractChannel {
         public void channelActive(final ChannelHandlerContext ctx) throws Exception {
             registerApplicationChannelIfNecessary();
             initStandaloneListener().addListener(future -> {
+                if (!future.isSuccess()) {
+                    ctx.fireExceptionCaught(future.cause());
+                    ctx.close();
+                    return;
+                }
                 if (applicationChannel.isRegistered()) {
                     channelActive0();
                 } else {
@@ -724,18 +767,7 @@ public class RakNetChildChannel extends AbstractChannel {
          */
         @Override
         public void close(final ChannelHandlerContext ctx, final ChannelPromise promise) {
-            if (listener.isRegistered()) {
-                ChannelPromise listenerClose = ctx.newPromise();
-                listener.close(wrapPromise(listenerClose));
-                listenerClose.addListener(future -> {
-                    if (!future.isSuccess()) {
-                        future.cause().printStackTrace();
-                    }
-                    ctx.close(promise);
-                });
-            } else {
-                ctx.close(promise);
-            }
+            closeStandaloneListener(ctx, promise);
         }
 
         /**

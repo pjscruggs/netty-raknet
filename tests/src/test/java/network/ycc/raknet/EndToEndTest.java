@@ -33,7 +33,10 @@ import org.junit.jupiter.api.Timeout;
 
 import java.net.InetSocketAddress;
 import java.util.Random;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
@@ -41,11 +44,13 @@ import java.util.function.BiConsumer;
 
 /** Checks socket lifecycle and reliable payload delivery through seeded datagram loss and reordering. */
 @Timeout(120)
-public class EndToEndTest {
+class EndToEndTest {
     /** Owns client and server UDP socket processing for each fixture instance. */
     final EventLoopGroup ioGroup = new NioEventLoopGroup(2);
     /** Owns server child connections and serializes the fixture's write-promise aggregation. */
     final EventLoopGroup childGroup = new NioEventLoopGroup(2);
+    /** Every real socket created by this fixture, retained only to verify close completion. */
+    final Queue<NioDatagramChannel> sockets = new ConcurrentLinkedQueue<>();
     /** Loopback endpoint used by the real UDP client and server in these sequential scenarios. */
     final InetSocketAddress localhost = new InetSocketAddress("localhost", 31745);
 
@@ -99,7 +104,7 @@ public class EndToEndTest {
      * @throws Throwable if any bind or close operation fails
      */
     @Test
-    public void serverCloseTest() throws Throwable {
+    void serverCloseTest() throws Throwable {
         for (int i = 0; i < 20; i++) {
             newServer(null, null).close().sync();
         }
@@ -110,13 +115,14 @@ public class EndToEndTest {
      * @throws Throwable if connection establishment or ordered shutdown fails
      */
     @Test
-    public void connectAndCloseTestServerFirst() throws Throwable {
-        for (int i = 0; i < 5; i++) {
+    void connectAndCloseTestServerFirst() throws Throwable {
+        for (int i = 0; i < 20; i++) {
             Channel server = newServer(null, null);
             Channel client = newClient(null);
 
-            server.close().sync();
-            client.close().sync();
+            closeWithinDeadline(server);
+            closeWithinDeadline(client);
+            sockets.forEach(socket -> Assertions.assertFalse(socket.isOpen(), "Socket remains open after peer close"));
         }
     }
 
@@ -125,7 +131,7 @@ public class EndToEndTest {
      * @throws Throwable if connection establishment or ordered shutdown fails
      */
     @Test
-    public void connectAndCloseTestClientFirst() throws Throwable {
+    void connectAndCloseTestClientFirst() throws Throwable {
         for (int i = 0; i < 20; i++) {
             Channel server = newServer(null, null);
             Channel client = newClient(null);
@@ -140,7 +146,7 @@ public class EndToEndTest {
      * @throws Throwable if the connection, delivery or channel cleanup fails
      */
     @Test
-    public void singleBufferTest() throws Throwable {
+    void singleBufferTest() throws Throwable {
         int bytesSent = 1000;
         AtomicInteger bytesRecvd = new AtomicInteger(0);
 
@@ -163,8 +169,6 @@ public class EndToEndTest {
 
         server.close().sync();
         client.close().sync();
-        System.gc();
-        System.gc();
 
         Assertions.assertEquals(bytesSent, bytesRecvd.get());
     }
@@ -174,7 +178,7 @@ public class EndToEndTest {
      * @throws Throwable if setup, reliable delivery or cleanup fails
      */
     @Test
-    public void manyBufferTest() throws Throwable {
+    void manyBufferTest() throws Throwable {
         dataTest(100, 5000, false, false);
     }
 
@@ -183,7 +187,7 @@ public class EndToEndTest {
      * @throws Throwable if setup, reliable delivery or cleanup fails
      */
     @Test
-    public void manyBufferBadClient() throws Throwable {
+    void manyBufferBadClient() throws Throwable {
         dataTest(100, 1000, true, false);
     }
 
@@ -192,7 +196,7 @@ public class EndToEndTest {
      * @throws Throwable if reliable delivery does not recover from the seeded faults
      */
     @Test
-    public void manyBufferBadServer() throws Throwable {
+    void manyBufferBadServer() throws Throwable {
         dataTest(100, 1000, false, true);
     }
 
@@ -201,15 +205,10 @@ public class EndToEndTest {
      * @throws Throwable if reassembly or reliable delivery fails under the injected faults
      */
     @Test
-    public void manyBufferBadBoth() throws Throwable {
+    void manyBufferBadBoth() throws Throwable {
         dataTest(100, 5000, true, true);
     }
 
-    /** Requests collection so Netty's leak detector can inspect unreachable fixture buffers. */
-    @Test
-    public void fireGC() {
-        System.gc();
-    }
 
     /**
      * Sends seeded payloads through a loopback UDP path and verifies reliable delivery.
@@ -228,7 +227,7 @@ public class EndToEndTest {
         AtomicInteger bytesRecvd = new AtomicInteger(0);
         AtomicInteger numRecvd = new AtomicInteger(0);
         AtomicInteger pending = new AtomicInteger(0);
-        ConcurrentHashMap<Long, Object> reliableSet = new ConcurrentHashMap<>();
+        ConcurrentMap<Long, Object> reliableSet = new ConcurrentHashMap<>();
         EventLoop testLoop = childGroup.next();
         PromiseCombiner combiner = new PromiseCombiner();
         Brutalizer brutalizer = new Brutalizer();
@@ -295,9 +294,6 @@ public class EndToEndTest {
             server.close().sync();
             client.close().sync();
         }
-        System.gc();
-        System.gc();
-        System.gc();
         Assertions.assertTrue(reliableSet.isEmpty());
         Assertions.assertEquals(0, pending.get());
         Assertions.assertEquals(nSend, numRecvd.get());
@@ -345,7 +341,7 @@ public class EndToEndTest {
      * @param bytesRecvd total bulk payload bytes received
      */
     private static void recordDelivery(final Object msg,
-            final ConcurrentHashMap<Long, Object> reliableSet, final AtomicInteger numRecvd,
+            final ConcurrentMap<Long, Object> reliableSet, final AtomicInteger numRecvd,
             final AtomicInteger bytesRecvd) {
         try {
             if (msg instanceof ByteBuf) {
@@ -363,6 +359,31 @@ public class EndToEndTest {
     }
 
     /**
+     * Requires a close request to finish promptly and reports both wrapper and transport state on failure.
+     *
+     * @param channel application or listening channel whose close contract is under test
+     * @throws InterruptedException if the bounded wait is interrupted
+     */
+    private static void closeWithinDeadline(final Channel channel) throws InterruptedException {
+        final ChannelFuture closing = channel.close();
+        Assertions.assertTrue(closing.await(5, TimeUnit.SECONDS),
+                () -> "Close incomplete: open=" + channel.isOpen() + ", registered=" + channel.isRegistered()
+                        + ", pipeline=" + channel.pipeline().names() + ", parent=" + channel.parent());
+        Assertions.assertTrue(closing.isSuccess(), () -> String.valueOf(closing.cause()));
+    }
+
+    /**
+     * Creates and records a real UDP socket so shutdown checks include unregistered handshake sockets.
+     *
+     * @return fresh socket whose lifetime belongs to the transport under test
+     */
+    private NioDatagramChannel newDatagramChannel() {
+        final NioDatagramChannel socket = new NioDatagramChannel();
+        sockets.add(socket);
+        return socket;
+    }
+
+    /**
      * Binds a real UDP RakNet listener with application packet decoding on every accepted child.
      *
      * @param ioInit optional listener-pipeline initializer, replaced with an empty initializer when null
@@ -376,7 +397,7 @@ public class EndToEndTest {
         final ChannelInitializer<Channel> effectiveIoInit = ioInit == null ? new EmptyInit() : ioInit;
         final ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(ioGroup, childGroup)
-                .channelFactory(() -> new RakNetServerChannel(NioDatagramChannel::new))
+                .channelFactory(() -> new RakNetServerChannel(this::newDatagramChannel))
                 .option(RakNet.SERVER_ID, 12345L)
                 .option(RakNet.RETRY_DELAY_NANOS,
                         TimeUnit.NANOSECONDS.convert(10, TimeUnit.MILLISECONDS))
@@ -408,7 +429,7 @@ public class EndToEndTest {
             throws InterruptedException {
         final Bootstrap bootstrap = new Bootstrap()
                 .group(ioGroup)
-                .channelFactory(() -> new RakNetClientThreadedChannel(NioDatagramChannel::new))
+                .channelFactory(() -> new RakNetClientThreadedChannel(this::newDatagramChannel))
                 .option(RakNet.CLIENT_ID, 6789L)
                 .option(RakNet.RETRY_DELAY_NANOS,
                         TimeUnit.NANOSECONDS.convert(10, TimeUnit.MILLISECONDS))
@@ -433,9 +454,9 @@ public class EndToEndTest {
         /** Seeded source shared with the payload generator to reproduce a complete fault sequence. */
         Random rnd;
         /** Whether outgoing datagrams are subject to the configured fault probabilities. */
-        boolean brutalizeWrite = false;
+        boolean brutalizeWrite;
         /** Whether incoming datagrams are subject to the configured fault probabilities. */
-        boolean brutalizeRead = false;
+        boolean brutalizeRead;
         /** Probability that a datagram is dropped or saved for delayed delivery. */
         double lossPercent = 0.20;
         /** Probability of forwarding an additional retained reference to the same datagram. */
@@ -444,9 +465,9 @@ public class EndToEndTest {
         double orderPercent = 0.20;
 
         /** Outgoing datagram reference owned by the injector until forwarded or released. */
-        Object writeStash = null;
+        Object writeStash;
         /** Incoming datagram reference owned by the injector until forwarded or released. */
-        Object readStash = null;
+        Object readStash;
 
         /**
          * Releases any delayed datagrams still owned by the injector when its pipeline is removed.
