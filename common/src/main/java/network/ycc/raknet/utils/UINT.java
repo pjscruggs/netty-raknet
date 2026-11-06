@@ -14,12 +14,26 @@ public class UINT {
         private B2() {
         }
 
-        public static int plus(int value, int add) {
-            return (value + add) & MAX_VALUE;
+        /**
+         * Adds the low sixteen bits without overflowing the signed intermediate.
+         *
+         * @param value current unsigned counter or its signed representation
+         * @param add increment reduced modulo the wire counter width
+         * @return wrapped unsigned sixteen-bit sum
+         */
+        public static int plus(final int value, final int add) {
+            return ((value & MAX_VALUE) + (add & MAX_VALUE)) & MAX_VALUE;
         }
 
-        public static int minus(int value, int minus) {
-            return (value - minus) & MAX_VALUE;
+        /**
+         * Subtracts the low sixteen bits while keeping the intermediate in the signed integer range.
+         *
+         * @param value current unsigned counter or its signed representation
+         * @param minus decrement reduced modulo the wire counter width
+         * @return wrapped unsigned sixteen-bit difference
+         */
+        public static int minus(final int value, final int minus) {
+            return ((value & MAX_VALUE) - (minus & MAX_VALUE)) & MAX_VALUE;
         }
 
     }
@@ -32,23 +46,45 @@ public class UINT {
         private B3() {
         }
 
-        public static int plus(int value, int add) {
-            return (value + add) & MAX_VALUE;
+        /**
+         * Adds normalized wire counters without relying on signed integer overflow.
+         *
+         * @param value current counter, normalized to its low twenty-four bits
+         * @param add increment, normalized to its low twenty-four bits
+         * @return unsigned twenty-four-bit sum
+         */
+        public static int plus(final int value, final int add) {
+            return ((value & MAX_VALUE) + (add & MAX_VALUE)) & MAX_VALUE;
         }
 
-        public static int minus(int value, int minus) {
-            return (value - minus) & MAX_VALUE;
+        /**
+         * Subtracts normalized wire counters without relying on signed integer overflow.
+         *
+         * @param value current counter, normalized to its low twenty-four bits
+         * @param minus subtracted counter, normalized to its low twenty-four bits
+         * @return unsigned twenty-four-bit difference
+         */
+        public static int minus(final int value, final int minus) {
+            return ((value & MAX_VALUE) - (minus & MAX_VALUE)) & MAX_VALUE;
         }
 
-        public static int minusWrap(int value, int minus) {
-            final int dist = value - minus;
-            if (dist < 0) {
-                return -minusWrap(minus, value);
-            } else if (dist > HALF_MAX) {
-                return value - (minus + MAX_VALUE + 1);
-            } else {
-                return dist;
+        /**
+         * Returns the shortest signed wire-counter distance without recursion or overflow.
+         * The exact half-range tie preserves the existing opposite-sign ordering convention.
+         *
+         * @param value received or local counter, normalized to twenty-four bits
+         * @param minus comparison counter, including the initial minus-one sentinel
+         * @return signed distance within half of the circular sequence space
+         */
+        public static int minusWrap(final int value, final int minus) {
+            final int dist = (value & MAX_VALUE) - (minus & MAX_VALUE);
+            if (dist > HALF_MAX) {
+                return dist - (MAX_VALUE + 1);
             }
+            if (dist < -HALF_MAX) {
+                return dist + MAX_VALUE + 1;
+            }
+            return dist;
         }
 
         protected static class Comparator implements IntComparator {
