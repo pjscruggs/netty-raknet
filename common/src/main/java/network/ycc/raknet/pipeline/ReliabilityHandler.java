@@ -150,40 +150,45 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         ctx.fireChannelReadComplete();
     }
 
-    protected void readAck(Reliability.ACK ack) {
+    /**
+     * Completes only outstanding frame sets covered by the peer's ranges.
+     *
+     * @param ack received acknowledgement whose ranges may overlap or wrap
+     */
+    protected void readAck(final Reliability.ACK ack) {
         int ackdBytes = 0;
-        int nIterations = 0;
-        for (Reliability.REntry entry : ack.getEntries()) {
-            final int max = UINT.B3.plus(entry.idFinish, 1);
-            for (int id = entry.idStart; id != max; id = UINT.B3.plus(id, 1)) {
-                final FrameSet frameSet = pendingFrameSets.remove(id);
-                if (frameSet != null) {
-                    ackdBytes += frameSet.getRoughSize();
-                    adjustResendGauge(1);
+        for (final int id : AcknowledgementRanges.select(ack.getEntries(), pendingFrameSets.keySet())) {
+            final FrameSet frameSet = pendingFrameSets.remove(id);
+            if (frameSet != null) {
+                ackdBytes += frameSet.getRoughSize();
+                adjustResendGauge(1);
+                try {
                     frameSet.succeed();
+                } finally {
                     frameSet.release();
-                    tryProduceFrameSets();
                 }
-                Constants.packetLossCheck(nIterations++, "ack confirm range");
+                tryProduceFrameSets();
             }
         }
         config.getMetrics().bytesACKd(ackdBytes);
     }
 
-    protected void readNack(Reliability.NACK nack) {
-        if (!config.isNACKEnabled()) return;
+    /**
+     * Recalls outstanding packets once even when the peer repeats broad or overlapping ranges.
+     *
+     * @param nack received negative acknowledgement
+     */
+    protected void readNack(final Reliability.NACK nack) {
+        if (!config.isNACKEnabled()) {
+            return;
+        }
 
         int bytesNACKd = 0;
-        int nIterations = 0;
-        for (Reliability.REntry entry : nack.getEntries()) {
-            final int max = UINT.B3.plus(entry.idFinish, 1);
-            for (int id = entry.idStart; id != max; id = UINT.B3.plus(id, 1)) {
-                final FrameSet frameSet = pendingFrameSets.remove(id);
-                if (frameSet != null) {
-                    bytesNACKd += frameSet.getRoughSize();
-                    recallFrameSet(frameSet);
-                }
-                Constants.packetLossCheck(nIterations++, "nack confirm range");
+        for (final int id : AcknowledgementRanges.select(nack.getEntries(), pendingFrameSets.keySet())) {
+            final FrameSet frameSet = pendingFrameSets.remove(id);
+            if (frameSet != null) {
+                bytesNACKd += frameSet.getRoughSize();
+                recallFrameSet(frameSet);
             }
         }
         config.getMetrics().bytesNACKd(bytesNACKd);
