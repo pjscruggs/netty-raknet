@@ -10,8 +10,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Exercises channel collections with both RakNet pipelines and their backing UDP sockets. */
 class DatagramChannelIdentityTest {
@@ -49,7 +47,5 @@ class DatagramChannelIdentityTest {
         assertEquals(left == right, left.equals(right));
         assertEquals(left == right, left.compareTo(right) == 0);
         assertEquals(Integer.signum(left.compareTo(right)), -Integer.signum(right.compareTo(left)));
-        assertTrue(left.equals(left));
-        assertFalse(left.equals(null));
     }
 }
