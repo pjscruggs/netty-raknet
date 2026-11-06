@@ -14,6 +14,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 /**
  * Restores independent ordering lanes after fragment reassembly and releases retained payloads on removal.
@@ -85,7 +87,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
 
         /**
          * Advances the lane past a gap when a newer sequencing counter arrives, then applies ordinary ordered delivery.
-         * Queued entries encountered during that advancement are released instead of being delivered.
+         * Superseded queued entries are released in work proportional to the queue size, not the wire-counter gap.
          *
          * @param frame sequenced input whose original ownership remains with the outer decoder
          * @param list destination for retained payloads made deliverable by this frame
@@ -93,13 +95,33 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
         protected void decodeSequenced(final Frame frame, final List<Object> list) {
             if (UINT.B3.minusWrap(frame.getSequenceIndex(), lastSequenceIndex) > 0) {
                 lastSequenceIndex = frame.getSequenceIndex();
-                //remove earlier packets from queue
-                while (UINT.B3.minusWrap(frame.getOrderIndex(), lastOrderIndex) > 1) {
-                    ReferenceCountUtil.release(queue.remove(lastOrderIndex));
-                    lastOrderIndex = UINT.B3.plus(lastOrderIndex, 1);
-                }
+                skipTo(frame.getOrderIndex());
             }
             decodeOrdered(frame, list); //register packet as normal
+        }
+
+        /**
+         * Releases queued positions strictly before the new frame and advances to its immediate predecessor.
+         * Circular distances are measured from the previous delivered position so wraparound retains later frames.
+         *
+         * @param orderIndex incoming frame's twenty-four-bit ordering counter
+         */
+        private void skipTo(final int orderIndex) {
+            final int distance = UINT.B3.minusWrap(orderIndex, lastOrderIndex);
+            if (distance <= 1) {
+                return;
+            }
+            final ObjectIterator<Int2ObjectMap.Entry<FramedPacket>> iterator =
+                    queue.int2ObjectEntrySet().fastIterator();
+            while (iterator.hasNext()) {
+                final Int2ObjectMap.Entry<FramedPacket> entry = iterator.next();
+                final int queuedDistance = UINT.B3.minusWrap(entry.getIntKey(), lastOrderIndex);
+                if (queuedDistance > 0 && queuedDistance < distance) {
+                    ReferenceCountUtil.release(entry.getValue());
+                    iterator.remove();
+                }
+            }
+            lastOrderIndex = UINT.B3.plus(orderIndex, -1);
         }
 
         /**
