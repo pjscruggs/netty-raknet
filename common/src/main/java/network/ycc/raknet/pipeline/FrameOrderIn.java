@@ -15,18 +15,31 @@ import java.util.List;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
+/**
+ * Restores independent ordering lanes after fragment reassembly and releases retained payloads on removal.
+ * Counter comparisons use twenty-four-bit circular distance and all mutable queues belong to the connection event loop.
+ */
 public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
 
+    /** Pipeline name for restoring application packet order after fragment reassembly. */
     public static final String NAME = "rn-order-in";
 
+    /** Eight independent lane queues, each with its own delivered and sequenced counter state. */
     protected final OrderedChannelPacketQueue[] channels = new OrderedChannelPacketQueue[8];
 
+    /** Creates every ordering lane with no delivered packets and the initial minus-one counter sentinel. */
     public FrameOrderIn() {
         for (int i = 0; i < channels.length; i++) {
             channels[i] = new OrderedChannelPacketQueue();
         }
     }
 
+    /**
+     * Releases payloads retained behind missing ordering positions when this connection stage is removed.
+     *
+     * @param ctx pipeline context being detached
+     * @throws Exception if the decoder superclass cannot complete its removal callback
+     */
     @Override
     public void handlerRemoved(final ChannelHandlerContext ctx) throws Exception {
         super.handlerRemoved(ctx);
@@ -60,12 +73,23 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
         }
     }
 
+    /** Holds future payloads and delivery counters for one ordering lane on the connection event loop. */
     protected static class OrderedChannelPacketQueue {
 
+        /** Owned payload references indexed by future order counters, transferred onward only when eligible. */
         protected final Int2ObjectOpenHashMap<FramedPacket> queue = new Int2ObjectOpenHashMap<>();
+        /** Last delivered or skipped order counter, initially minus one so zero is the first expected packet. */
         protected int lastOrderIndex = -1;
+        /** Newest accepted sequencing counter, initially minus one before any freshness sample arrives. */
         protected int lastSequenceIndex = -1;
 
+        /**
+         * Advances the lane past a gap when a newer sequencing counter arrives, then applies ordinary ordered delivery.
+         * Queued entries encountered during that advancement are released instead of being delivered.
+         *
+         * @param frame sequenced input whose original ownership remains with the outer decoder
+         * @param list destination for retained payloads made deliverable by this frame
+         */
         protected void decodeSequenced(final Frame frame, final List<Object> list) {
             if (UINT.B3.minusWrap(frame.getSequenceIndex(), lastSequenceIndex) > 0) {
                 lastSequenceIndex = frame.getSequenceIndex();
@@ -78,6 +102,13 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
             decodeOrdered(frame, list); //register packet as normal
         }
 
+        /**
+         * Delivers the next expected payload and any contiguous queued successors, or retains a new future payload.
+         * Already delivered counters and duplicate queued counters produce no additional payload reference.
+         *
+         * @param frame input whose payload is retained only if queued or emitted
+         * @param list destination taking ownership of payloads delivered in lane order
+         */
         protected void decodeOrdered(final Frame frame, final List<Object> list) {
             final int indexDiff = UINT.B3.minusWrap(frame.getOrderIndex(), lastOrderIndex);
             Constants.packetLossCheck(indexDiff, "ordered difference");
@@ -95,6 +126,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
             Constants.packetLossCheck(queue.size(), "missed ordered packets");
         }
 
+        /** Releases every retained queued payload without changing the lane's counter history. */
         protected void clear() {
             queue.values().forEach(ReferenceCountUtil::release);
             queue.clear();
