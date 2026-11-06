@@ -33,16 +33,16 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     /**
      * Optional caller-selected IO event loop, configured before the parent is registered.
      */
-    private EventLoop providedParentEventLoop = null;
+    private EventLoop providedParentEventLoop;
     /**
      * Application registration loop remembered as the fallback parent loop when no IO loop was supplied.
      */
-    private EventLoop pendingEventLoop = null;
+    private EventLoop pendingEventLoop;
 
     /**
      * Application-visible activity state, published when parent lifecycle events reach the application loop.
      */
-    private volatile boolean active = false;
+    private volatile boolean active;
 
     /**
      * Creates an unregistered application channel backed by a default NIO RakNet client transport.

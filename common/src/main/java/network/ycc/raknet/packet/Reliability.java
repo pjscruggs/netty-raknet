@@ -1,5 +1,6 @@
 package network.ycc.raknet.packet;
 
+import java.util.List;
 import network.ycc.raknet.utils.UINT;
 
 import io.netty.buffer.ByteBuf;
@@ -43,7 +44,7 @@ public class Reliability extends SimplePacket implements Packet {
         if (ids.isEmpty()) {
             return;
         }
-        ArrayList<REntry> res = new ArrayList<>();
+        List<REntry> res = new ArrayList<>();
         int startId = -1;
         int endId = -1;
         for (int i : ids) {

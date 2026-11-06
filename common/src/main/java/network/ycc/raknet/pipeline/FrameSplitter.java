@@ -20,9 +20,9 @@ public class FrameSplitter extends MessageToMessageEncoder<Frame> {
     public static final String NAME = "rn-split";
 
     /** Next sixteen-bit identifier shared by the fragments of one outgoing packet. */
-    protected int nextSplitId = 0;
+    protected int nextSplitId;
     /** Next twenty-four-bit reliable counter, consumed once per reliable frame or fragment. */
-    protected int nextReliableId = 0;
+    protected int nextReliableId;
 
     /**
      * Fragments an oversized frame or retains a fitting frame after assigning its reliable counter.

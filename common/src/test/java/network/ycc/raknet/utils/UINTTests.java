@@ -10,10 +10,10 @@ import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSortedSet;
 
 /** Exercises 24-bit modular arithmetic with reproducible samples spanning counter wraparound. */
-public class UINTTests {
+class UINTTests {
     /** Signed distance must recover an offset smaller than half the sequence space after wrapped addition. */
     @Test
-    public void testMinusWrap() {
+    void testMinusWrap() {
         Random random = new Random(0);
         for (int i = 0; i < 1000000; i++) {
             int a = (int) (random.nextDouble() * UINT.B3.MAX_VALUE);
@@ -26,7 +26,7 @@ public class UINTTests {
 
     /** Unsigned subtraction must differ from signed circular distance for at least one negative offset. */
     @Test
-    public void testMinusFail() {
+    void testMinusFail() {
         Random random = new Random(0);
         boolean hasFailed = false;
         for (int i = 0; i < 1000000; i++) {
@@ -44,7 +44,7 @@ public class UINTTests {
 
     /** Checks adjacent iterator values against circular ordering, without claiming a global linear order. */
     @Test
-    public void testCompareIterator() {
+    void testCompareIterator() {
         Random random = new Random(0);
         IntSortedSet testSet = new IntRBTreeSet(UINT.B3.COMPARATOR);
         for (int i = 0; i < 500000; i++) {

@@ -1,7 +1,5 @@
 package network.ycc.raknet.utils;
 
-import io.netty.handler.codec.DecoderException;
-import io.netty.util.internal.SystemPropertyUtil;
 
 /** Retains a legacy packet-loss hook that currently performs no limit enforcement. */
 public class Constants {

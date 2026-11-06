@@ -17,7 +17,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -28,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Exercises a minimal server and threaded client exchanging UTF-8 application payloads over RakNet. */
 @Timeout(120)
-public class TestHelloWorld {
+class TestHelloWorld {
 
     /** Owns the UDP socket event loops used by this fixture's client and server. */
     final EventLoopGroup ioGroup = new NioEventLoopGroup(2);
@@ -57,7 +56,7 @@ public class TestHelloWorld {
      * @throws Throwable if binding, connecting, sending or closing a test channel fails
      */
     @Test
-    public void helloWorld() throws Throwable {
+    void helloWorld() throws Throwable {
         final Channel serverChannel = new ServerBootstrap()
                 .group(ioGroup, childGroup)
                 .channel(RakNetServer.CHANNEL)
@@ -114,7 +113,7 @@ public class TestHelloWorld {
         serverChannel.close().sync();
         clientChannel.close().sync();
 
-        Assertions.assertEquals(resultStr, helloWorld);
+        Assertions.assertEquals(helloWorld, resultStr);
     }
 
 }

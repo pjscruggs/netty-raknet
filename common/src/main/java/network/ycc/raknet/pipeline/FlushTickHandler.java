@@ -24,11 +24,11 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     public static final Object FLUSH_CHECK_SIGNAL = new Object();
 
     /** Elapsed nanoseconds not yet consumed by flushes or missed-interval notifications. */
-    protected long tickAccum = 0;
+    protected long tickAccum;
     /** Monotonic timestamp of the previous elapsed-time accounting update. */
     protected long lastTickAccum = System.nanoTime();
     /** Owned fallback task that checks for due flushes every fifty milliseconds. */
-    protected ScheduledFuture<?> flushTask = null;
+    protected ScheduledFuture<?> flushTask;
 
     /**
      * Requests elapsed-time accounting through the pipeline's internal user-event path.

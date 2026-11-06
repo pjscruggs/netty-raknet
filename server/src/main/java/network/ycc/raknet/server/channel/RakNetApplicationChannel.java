@@ -2,10 +2,8 @@ package network.ycc.raknet.server.channel;
 
 import io.netty.channel.AbstractChannel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOutboundBuffer;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.RecvByteBufAllocator;
@@ -29,7 +27,7 @@ public class RakNetApplicationChannel extends AbstractChannel {
     /**
      * Application-visible activity state, published when parent lifecycle events reach the application loop.
      */
-    private volatile boolean active = false;
+    private volatile boolean active;
 
     /**
      * Creates the application-facing channel for an existing server-side peer transport.

@@ -11,7 +11,7 @@ public class ConnectionFailed extends SimplePacket implements Packet {
     /** Offline-message marker carried by the failure. */
     protected RakNet.Magic magic;
     /** Opaque 64-bit failure value, initially zero. */
-    protected long code = 0;
+    protected long code;
 
     /** Creates an empty failure message for decoding. */
     public ConnectionFailed() {

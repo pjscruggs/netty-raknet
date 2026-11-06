@@ -26,11 +26,11 @@ import java.net.InetSocketAddress;
 public class ConnectionInitializer extends AbstractConnectionInitializer {
 
     /** Whether a client identifier has been bound to this handshake and must remain unchanged. */
-    protected boolean clientIdSet = false;
+    protected boolean clientIdSet;
     /** Whether the operator supplied an MTU that probe packets must not replace. */
-    protected boolean mtuFixed = false;
+    protected boolean mtuFixed;
     /** Whether the first probe arrived, allowing a phase-one reply to be sent. */
-    protected boolean seenFirst = false;
+    protected boolean seenFirst;
 
     /**
      * Associates handshake success or failure with the caller's connection promise.

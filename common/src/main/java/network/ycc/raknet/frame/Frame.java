@@ -65,11 +65,11 @@ public final class Frame extends AbstractReferenceCounted {
     /** Zero-based position of this fragment within its advertised fragment count. */
     private int splitIndex;
     /** Owned packet or fragment payload reference, cleared before wrapper recycling. */
-    private FrameData frameData = null;
+    private FrameData frameData;
     /** Leak record for the active acquisition, or null when no record is active. */
-    private ResourceLeakTracker<Frame> tracker = null;
+    private ResourceLeakTracker<Frame> tracker;
     /** Optional originating write promise, shared by retransmission paths until delivery completes. */
-    private ChannelPromise promise = null;
+    private ChannelPromise promise;
 
     /**
      * Creates a recycler-owned wrapper with no active reference or payload.

@@ -11,7 +11,7 @@ import java.net.InetSocketAddress;
 public class ConnectionReply2 extends AbstractConnectionReply implements Packet {
 
     /** Client endpoint observed by the server, or null when encoding a wildcard address. */
-    private InetSocketAddress address = null;
+    private InetSocketAddress address;
 
     /** Creates an uninitialized reply for the packet decoder. */
     public ConnectionReply2() {

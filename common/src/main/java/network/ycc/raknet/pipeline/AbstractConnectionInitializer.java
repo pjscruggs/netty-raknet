@@ -3,10 +3,8 @@ package network.ycc.raknet.pipeline;
 import network.ycc.raknet.RakNet;
 import network.ycc.raknet.packet.ConnectionFailed;
 import network.ycc.raknet.packet.Packet;
-import network.ycc.raknet.packet.Ping;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.ConnectTimeoutException;
@@ -28,9 +26,9 @@ public abstract class AbstractConnectionInitializer extends SimpleChannelInbound
     /** Current handshake phase, initially the first offline request/reply exchange. */
     protected State state = State.CR1;
     /** Periodic retry task that resends the current phase's request every fifty milliseconds. */
-    protected ScheduledFuture<?> sendTimer = null;
+    protected ScheduledFuture<?> sendTimer;
     /** Single deadline task using the channel's configured connection timeout. */
-    protected ScheduledFuture<?> connectTimer = null;
+    protected ScheduledFuture<?> connectTimer;
 
     /**
      * Associates this negotiation state with the caller's connection-completion promise.

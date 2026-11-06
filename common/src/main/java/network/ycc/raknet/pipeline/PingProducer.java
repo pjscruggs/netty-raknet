@@ -15,7 +15,7 @@ public class PingProducer implements ChannelHandler {
     public static final String NAME = "rn-ping-producer";
 
     /** Owned periodic task, or null before installation and after cancellation. */
-    ScheduledFuture<?> pingTask = null;
+    ScheduledFuture<?> pingTask;
 
     /**
      * Starts periodic ping writes immediately, using the same event loop that owns the transport pipeline.

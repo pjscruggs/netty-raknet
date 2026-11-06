@@ -1,5 +1,6 @@
 package network.ycc.raknet.packet;
 
+import java.util.List;
 import network.ycc.raknet.config.DefaultCodec;
 import network.ycc.raknet.frame.Frame;
 
@@ -46,7 +47,7 @@ public final class FrameSet extends AbstractReferenceCounted implements Packet {
     };
 
     /** Frame references owned by this datagram, in wire order. */
-    protected final ArrayList<Frame> frames = new ArrayList<>(8);
+    protected final List<Frame> frames = new ArrayList<>(8);
     /** Recycler handle that accepts this wrapper after deallocation. */
     protected final Recycler.Handle<FrameSet> handle;
     /** Datagram sequence number encoded in the low 24 bits of the header. */

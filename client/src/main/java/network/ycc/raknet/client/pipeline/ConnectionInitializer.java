@@ -27,7 +27,7 @@ public class ConnectionInitializer extends AbstractConnectionInitializer {
     /**
      * Number of phase-one probes already sent, used to reduce subsequent probe sizes in 16-byte steps.
      */
-    private int cr1Retries = 0;
+    private int cr1Retries;
 
     /**
      * Associates this negotiation with the client channel's connection-completion promise.

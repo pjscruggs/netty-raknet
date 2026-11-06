@@ -35,7 +35,7 @@ import java.util.concurrent.ExecutionException;
 
 /** Exercises connection establishment, rejected negotiation and malformed frame decoding on loopback. */
 @Timeout(120)
-public class BehaviorTest {
+class BehaviorTest {
     /** Event loops that own this fixture's listening and connecting UDP channels. */
     final EventLoopGroup ioGroup = new NioEventLoopGroup(2);
     /** Separate event loops for server child-connection processing. */
@@ -61,7 +61,7 @@ public class BehaviorTest {
      * @throws Throwable if a supported IPv6 handshake or channel cleanup fails
      */
     @Test
-    public void connectIPv6() throws Throwable {
+    void connectIPv6() throws Throwable {
         try {
             final InetSocketAddress localhostIPv6 = new InetSocketAddress("::1", port);
 
@@ -76,7 +76,7 @@ public class BehaviorTest {
      * @throws Throwable if a supported address-family handshake or channel cleanup fails
      */
     @Test
-    public void connectIPv4() throws Throwable {
+    void connectIPv4() throws Throwable {
         try {
             tryConnect(localhost);
         } catch (UnsupportedAddressTypeException e) {
@@ -121,7 +121,7 @@ public class BehaviorTest {
      * @throws Throwable if setup or cleanup fails outside the expected negotiation rejection
      */
     @Test()
-    public void badMagicClient() throws Throwable {
+    void badMagicClient() throws Throwable {
         final Channel serverChannel = new ServerBootstrap()
                 .group(ioGroup, childGroup)
                 .channel(RakNetServer.CHANNEL)
@@ -153,7 +153,7 @@ public class BehaviorTest {
      * @throws Throwable if setup or cleanup fails outside the expected timeout
      */
     @Test()
-    public void badConnect() throws Throwable {
+    void badConnect() throws Throwable {
         final Channel serverChannel = new Bootstrap()
                 .group(ioGroup)
                 .channel(NioDatagramChannel.class)
@@ -184,7 +184,7 @@ public class BehaviorTest {
      * @throws Throwable if setup or cleanup fails outside the expected version rejection
      */
     @Test
-    public void badVersionClient() throws Throwable {
+    void badVersionClient() throws Throwable {
         final Channel serverChannel = new ServerBootstrap()
                 .group(ioGroup, childGroup)
                 .channel(RakNetServer.CHANNEL)
@@ -215,7 +215,7 @@ public class BehaviorTest {
      * @throws Throwable if setup or cleanup fails outside the expected version rejection
      */
     @Test
-    public void badVersionServer() throws Throwable {
+    void badVersionServer() throws Throwable {
         final Channel serverChannel = new ServerBootstrap()
                 .group(ioGroup, childGroup)
                 .channel(RakNetServer.CHANNEL)
@@ -245,7 +245,7 @@ public class BehaviorTest {
 
     /** A truncated frame-set payload must produce a decoder failure rather than a partially accepted packet. */
     @Test()
-    public void corruptFrameTest() {
+    void corruptFrameTest() {
         final ByteBuf input = Unpooled.wrappedBuffer(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9});
         try {
             Assertions.assertThrows(CorruptedFrameException.class, () -> FrameSet.read(input));

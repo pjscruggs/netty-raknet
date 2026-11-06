@@ -6,7 +6,7 @@ public abstract class SimpleFramedPacket extends SimplePacket implements FramedP
     /** Requested transport policy, initially reliable ordered delivery. */
     protected FramedPacket.Reliability reliability = FramedPacket.Reliability.RELIABLE_ORDERED;
     /** Ordering lane used by ordered or sequenced delivery, initially zero. */
-    protected int orderChannel = 0;
+    protected int orderChannel;
 
     /**
      * Returns the delivery policy copied into the encoded frame metadata.

@@ -55,17 +55,17 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     /** Packet registry used for encoding and decoding this connection's transport messages. */
     private volatile RakNet.Codec codec = DefaultCodec.INSTANCE;
     /** Live array of transport versions accepted by the server, initially nine and ten. */
-    private volatile int[] protocolVersions = new int[]{9, 10};
+    private volatile int[] protocolVersions = {9, 10};
     /** Maximum number of child connections admitted by a server channel. */
     private volatile int maxConnections = 2048;
     /** Transport version selected for this connection, initially nine. */
     private volatile int protocolVersion = 9;
     /** Whether loss feedback is replaced with a positive gauge when adjusting burst allowance. */
-    private volatile boolean ignoreResendGauge = false;
+    private volatile boolean ignoreResendGauge;
     /** Whether missing datagram sequences produce negative acknowledgements and incoming NACKs are honored. */
-    private volatile boolean NACKEnabled = false;
+    private volatile boolean NACKEnabled;
     /** Whether flush updates immediately select the maximum configured burst allowance. */
-    private volatile boolean noDelay = false;
+    private volatile boolean noDelay;
 
     /**
      * Initializes Netty options and seeds the RTT window with a 100-millisecond sample.

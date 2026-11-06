@@ -1,5 +1,6 @@
 package network.ycc.raknet.pipeline;
 
+import java.util.Queue;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -35,23 +36,23 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     /** Received datagram counters awaiting acknowledgement, ordered by circular counter distance. */
     protected final IntSortedSet ackSet = new IntRBTreeSet(UINT.B3.COMPARATOR);
     /** Owned unsent or recalled frame references waiting for packet production. */
-    protected final PriorityQueue<Frame> frameQueue = new PriorityQueue<>(Frame.COMPARATOR);
+    protected final Queue<Frame> frameQueue = new PriorityQueue<>(Frame.COMPARATOR);
     /** Owned transmitted frame sets awaiting acknowledgement, kept in send-time insertion order for expiry scans. */
     protected final Int2ObjectLinkedOpenHashMap<FrameSet> pendingFrameSets = new Int2ObjectLinkedOpenHashMap<>();
 
     /** Conservative total byte cost of frames waiting in frameQueue, excluding outstanding frame sets. */
-    protected int queuedBytes = 0;
+    protected int queuedBytes;
 
     /** Newest received datagram sequence used to identify gaps with twenty-four-bit circular comparison. */
-    protected int lastReceivedSeqId = 0;
+    protected int lastReceivedSeqId;
     /** Next twenty-four-bit sequence assigned to a newly produced outgoing frame set. */
-    protected int nextSendSeqId = 0;
+    protected int nextSendSeqId;
     /** Clamped delivery trend that increases on acknowledgements and decreases when frames are recalled. */
-    protected int resendGauge = 0;
+    protected int resendGauge;
     /** Additional outstanding frame-set allowance above the configured baseline window. */
-    protected int burstTokens = 0;
+    protected int burstTokens;
     /** Connection configuration captured during installation for event-loop transport decisions. */
-    protected RakNet.Config config = null; //TODO: not really needed anymore
+    protected RakNet.Config config; //TODO: not really needed anymore
     /** Installed context used by deferred frame production after acknowledgement callbacks. */
     protected ChannelHandlerContext ctx;
 

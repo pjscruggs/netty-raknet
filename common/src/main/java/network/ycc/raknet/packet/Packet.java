@@ -13,6 +13,7 @@ public interface Packet {
     }
 
     /** Identifies handshake messages that carry the client identity used to detect a restarted session. */
+    @FunctionalInterface
     interface ClientIdConnection extends Packet {
         /**
          * Returns the client identity announced in this handshake message.

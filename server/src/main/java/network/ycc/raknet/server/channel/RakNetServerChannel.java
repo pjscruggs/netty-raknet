@@ -30,7 +30,6 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -52,7 +51,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
     /**
      * Optional application-loop override that leaves peer transport registration with the bootstrap child group.
      */
-    private EventLoop providedApplicationEventLoop = null;
+    private EventLoop providedApplicationEventLoop;
 
     /**
      * Creates an unbound NIO server listener with the default offline admission pipeline.

@@ -9,9 +9,9 @@ import io.netty.buffer.ByteBuf;
 public class UnconnectedPong extends SimplePacket implements Packet {
 
     /** Client clock value echoed unchanged from the discovery request. */
-    private long clientTime = 0L;
+    private long clientTime;
     /** Identifier of the advertising server. */
-    private long serverId = 0L;
+    private long serverId;
     /** Offline-message marker carried by this discovery reply. */
     private RakNet.Magic magic;
     /** Server advertisement text encoded as a length-prefixed UTF-8 string. */
