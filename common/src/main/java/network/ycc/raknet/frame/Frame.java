@@ -496,12 +496,12 @@ public final class Frame extends AbstractReferenceCounted {
 
     /**
      * Prioritizes unreliable frames, then compares reliable frames using circular counter distance.
-     * This scheduling comparison does not provide a total order for distinct unreliable frames or equal counters.
+     * Frames in the same scheduling class compare equal, including unreliable frames and repeated reliable counters.
      */
     protected static final class FrameComparator implements java.util.Comparator<Frame> {
         /**
          * Places unreliable traffic first and orders reliable counters within the unambiguous half-counter range.
-         * Only identical frame objects compare equal in this implementation.
+         * Reliable counters must belong to an active window shorter than half the sequence space.
          *
          * @param a first scheduled frame
          * @param b second scheduled frame
@@ -512,11 +512,11 @@ public final class Frame extends AbstractReferenceCounted {
             if (a == b) {
                 return 0;
             } else if (!a.getReliability().isReliable) {
-                return -1;
+                return b.getReliability().isReliable ? -1 : 0;
             } else if (!b.getReliability().isReliable) {
                 return 1;
             }
-            return UINT.B3.minusWrap(a.reliableIndex, b.reliableIndex) < 0 ? -1 : 1;
+            return Integer.signum(UINT.B3.minusWrap(a.reliableIndex, b.reliableIndex));
         }
     }
 
