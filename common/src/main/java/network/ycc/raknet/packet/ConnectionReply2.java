@@ -38,6 +38,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
      */
     @Override
     public void encode(final ByteBuf buf) {
+        validateMtu();
         magic.write(buf);
         buf.writeLong(serverId);
         if (address == null) {
@@ -50,7 +51,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
     }
 
     /**
-     * Reads magic, server identity, client address and a signed-short MTU, then rejects legacy security.
+     * Reads magic, server identity, client address and an unsigned-short MTU, then rejects legacy security.
      *
      * @param buf source positioned after the packet ID, retained by the caller
      * @throws IllegalArgumentException if the peer requires the unsupported legacy RakNet security handshake
@@ -60,7 +61,7 @@ public class ConnectionReply2 extends AbstractConnectionReply implements Packet 
         magic = DefaultMagic.decode(buf);
         serverId = buf.readLong();
         address = readAddress(buf);
-        mtu = buf.readShort();
+        mtu = buf.readUnsignedShort();
         if (buf.readBoolean()) {
             throw new IllegalArgumentException("No security support yet"); //TODO: security i guess?
         }

@@ -3,6 +3,7 @@ package network.ycc.raknet.packet;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
+import network.ycc.raknet.utils.UINT;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -23,28 +24,30 @@ public abstract class SimplePacket implements Packet {
 
     /**
      * Appends a 16-bit byte length followed by UTF-8 data without truncating the text.
-     * Callers must keep the byte length representable by the peer's decoder.
+     * Rejects text beyond the unsigned-short byte limit before changing the destination.
      *
      * @param buf destination whose writer index advances
      * @param str text converted to UTF-8 before its byte length is encoded
+     * @throws EncoderException if the encoded text exceeds the unsigned-short wire limit
      */
     public static void writeString(final ByteBuf buf, final String str) {
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+        if (!UINT.fits(bytes.length, 16)) {
+            throw new EncoderException("RakNet string exceeds 65535 UTF-8 bytes");
+        }
         buf.writeShort(bytes.length);
         buf.writeBytes(bytes);
     }
 
     /**
-     * Reads a signed-short byte count and decodes that many bytes as UTF-8.
-     * Lengths with the high bit set are not accepted by this implementation.
+     * Reads an unsigned-short byte count and decodes exactly that many bytes as UTF-8.
+     * Buffer bounds are checked before allocating or copying the text.
      *
      * @param buf source whose reader index advances over the length and encoded text
      * @return decoded UTF-8 text
      */
     public static String readString(final ByteBuf buf) {
-        byte[] bytes = new byte[buf.readShort()];
-        buf.readBytes(bytes);
-        return new String(bytes, StandardCharsets.UTF_8);
+        return buf.readCharSequence(buf.readUnsignedShort(), StandardCharsets.UTF_8).toString();
     }
 
     /**

@@ -1,6 +1,8 @@
 package network.ycc.raknet.packet;
 
 import network.ycc.raknet.RakNet;
+import network.ycc.raknet.utils.UINT;
+import io.netty.handler.codec.EncoderException;
 
 /** Shares the negotiated MTU, server identity and offline marker between the two connection replies. */
 public abstract class AbstractConnectionReply extends SimplePacket {
@@ -51,12 +53,23 @@ public abstract class AbstractConnectionReply extends SimplePacket {
     }
 
     /**
-     * Reports the server-selected datagram size. The concrete reply decoders currently read a signed short.
+     * Reports the server-selected datagram size from the unsigned-short wire field.
      *
      * @return stored MTU in bytes
      */
     public int getMtu() {
         return mtu;
+    }
+
+    /**
+     * Rejects a local MTU that would be silently truncated by either reply's unsigned-short field.
+     *
+     * @throws EncoderException if the MTU is negative or greater than 65535
+     */
+    protected final void validateMtu() {
+        if (!UINT.fits(mtu, 16)) {
+            throw new EncoderException("RakNet MTU is outside the unsigned-short range");
+        }
     }
 
     /**

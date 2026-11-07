@@ -9,6 +9,41 @@ public class UINT {
     private UINT() {
     }
 
+    /**
+     * Checks whether a nonnegative integer fits a wire field without truncation or Java shift-width wrap.
+     *
+     * @param value integer about to be written to the wire
+     * @param bits field width from one through thirty-one bits
+     * @return whether the width is supported and every value bit fits within it
+     */
+    public static boolean fits(final int value, final int bits) {
+        return bits > 0 && bits < Integer.SIZE && value >= 0 && (value >>> bits) == 0;
+    }
+
+    /**
+     * Adds normalized operands for the supported widths without signed intermediate overflow.
+     *
+     * @param value counter to advance
+     * @param increment amount to add, reduced to the selected width
+     * @param mask contiguous low-bit mask for a 16-bit or 24-bit wire field
+     * @return sum wrapped to the selected field width
+     */
+    private static int addMasked(final int value, final int increment, final int mask) {
+        return ((value & mask) + (increment & mask)) & mask;
+    }
+
+    /**
+     * Subtracts normalized operands using the same width rules for both wire-counter types.
+     *
+     * @param value counter to reduce
+     * @param decrement amount to subtract, reduced to the selected width
+     * @param mask contiguous low-bit mask for a 16-bit or 24-bit wire field
+     * @return difference wrapped to the selected field width
+     */
+    private static int subtractMasked(final int value, final int decrement, final int mask) {
+        return ((value & mask) - (decrement & mask)) & mask;
+    }
+
     /** Normalizes and wraps arithmetic in the unsigned 16-bit sequence space. */
     public static class B2 {
 
@@ -27,7 +62,7 @@ public class UINT {
          * @return wrapped unsigned sixteen-bit sum
          */
         public static int plus(final int value, final int add) {
-            return ((value & MAX_VALUE) + (add & MAX_VALUE)) & MAX_VALUE;
+            return addMasked(value, add, MAX_VALUE);
         }
 
         /**
@@ -38,7 +73,7 @@ public class UINT {
          * @return wrapped unsigned sixteen-bit difference
          */
         public static int minus(final int value, final int minus) {
-            return ((value & MAX_VALUE) - (minus & MAX_VALUE)) & MAX_VALUE;
+            return subtractMasked(value, minus, MAX_VALUE);
         }
 
     }
@@ -64,7 +99,7 @@ public class UINT {
          * @return unsigned twenty-four-bit sum
          */
         public static int plus(final int value, final int add) {
-            return ((value & MAX_VALUE) + (add & MAX_VALUE)) & MAX_VALUE;
+            return addMasked(value, add, MAX_VALUE);
         }
 
         /**
@@ -75,7 +110,7 @@ public class UINT {
          * @return unsigned twenty-four-bit difference
          */
         public static int minus(final int value, final int minus) {
-            return ((value & MAX_VALUE) - (minus & MAX_VALUE)) & MAX_VALUE;
+            return subtractMasked(value, minus, MAX_VALUE);
         }
 
         /**
