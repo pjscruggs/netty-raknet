@@ -4,6 +4,8 @@ import network.ycc.raknet.RakNet;
 import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.frame.FrameData;
 import network.ycc.raknet.utils.Constants;
+import network.ycc.raknet.utils.UINT;
+import java.util.function.Predicate;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -40,11 +42,37 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
      * @param channel ordering lane whose partial packets can no longer be delivered
      */
     public final void discardOrderedChannel(final int channel) {
+        discardMatching(sample -> sample.getReliability().isOrdered && sample.getOrderChannel() == channel);
+    }
+
+    /**
+     * Releases only partial ordered packets superseded by a synchronization cursor, preserving newer packets.
+     * Circular comparisons handle counter wrap and prevent delayed markers from discarding future fragments.
+     *
+     * @param channel ordering lane whose obsolete partial packets are being abandoned
+     * @param lastOrderIndex final superseded twenty-four-bit position
+     * @throws IllegalArgumentException if the cursor does not fit the wire counter
+     */
+    public final void discardOrderedThrough(final int channel, final int lastOrderIndex) {
+        if (!UINT.fits(lastOrderIndex, 24)) {
+            throw new IllegalArgumentException("Invalid fragment ordering cursor");
+        }
+        discardMatching(sample -> sample.getReliability().isOrdered
+                && sample.getOrderChannel() == channel
+                && UINT.B3.minusWrap(sample.getOrderIndex(), lastOrderIndex) <= 0);
+    }
+
+    /**
+     * Releases matching incomplete groups and returns their retention reservations in the same operation.
+     *
+     * @param discard predicate evaluated against each group's immutable sample metadata
+     */
+    private void discardMatching(final Predicate<Frame> discard) {
         final java.util.Iterator<Builder> iterator = pendingPackets.values().iterator();
         while (iterator.hasNext()) {
             final Builder builder = iterator.next();
             final Frame sample = builder.samplePacket;
-            if (sample.getReliability().isOrdered && sample.getOrderChannel() == channel) {
+            if (discard.test(sample)) {
                 iterator.remove();
                 pendingBytes -= builder.retainedBytes;
                 builder.release();

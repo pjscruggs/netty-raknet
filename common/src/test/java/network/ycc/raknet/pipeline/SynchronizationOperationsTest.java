@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.List;
+import java.util.ArrayList;
 import network.ycc.raknet.config.DefaultConfig;
 import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.frame.FrameData;
@@ -80,6 +81,32 @@ class SynchronizationOperationsTest {
             lane.clear();
             old.release();
             future.release();
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /** Advancing across a gap releases consecutive future packets even if the sender has no more data. */
+    @Test
+    void resetImmediatelyMakesConsecutiveFuturePacketsDeliverable() {
+        final EmbeddedChannel channel = new EmbeddedChannel();
+        final FrameOrderIn ordering = new FrameOrderIn();
+        final Frame frame = frame(channel);
+        final List<FrameData> delivered = new ArrayList<>();
+        ordering.channels[0].enqueue(6, frame.retainedFrameData());
+        ordering.channels[0].enqueue(7, frame.retainedFrameData());
+        try {
+            ordering.skipOrderedThrough(0, 5);
+            ordering.drainReadyFrames(delivered::add);
+            assertEquals(2, delivered.size());
+            assertEquals(7, ordering.channels[0].lastOrderIndex);
+            assertTrue(ordering.channels[0].queue.isEmpty());
+            ordering.skipOrderedThrough(0, 3);
+            ordering.drainReadyFrames(delivered::add);
+            assertEquals(2, delivered.size());
+        } finally {
+            delivered.forEach(FrameData::release);
+            ordering.channels[0].clear();
+            frame.release();
             channel.finishAndReleaseAll();
         }
     }

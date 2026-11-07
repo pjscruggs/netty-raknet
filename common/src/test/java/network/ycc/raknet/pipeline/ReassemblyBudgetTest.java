@@ -139,6 +139,31 @@ class ReassemblyBudgetTest {
         }
     }
 
+    /** Delayed synchronization cursors release obsolete fragments without destroying newer partial packets. */
+    @Test
+    void cursorResetPreservesNewerFragmentGroups() {
+        final FrameJoiner joiner = new FrameJoiner();
+        final EmbeddedChannel channel = new EmbeddedChannel(joiner);
+        final Frame old = fragment(4, 0, 2);
+        final Frame future = fragment(9, 0, 2);
+        final List<Object> output = new ArrayList<>();
+        try {
+            joiner.join(UnpooledByteBufAllocator.DEFAULT, 75, old, output);
+            joiner.join(UnpooledByteBufAllocator.DEFAULT, 75, future, output);
+            joiner.discardOrderedThrough(0, 5);
+            assertEquals(1, old.refCnt());
+            assertEquals(2, future.refCnt());
+            joiner.discardOrderedThrough(0, 3);
+            assertEquals(2, future.refCnt());
+            assertEquals(1, joiner.pendingPackets.size());
+        } finally {
+            channel.finishAndReleaseAll();
+            old.release();
+            future.release();
+            output.forEach(ReferenceCountUtil::release);
+        }
+    }
+
     /**
      * Decodes a one-byte ordered fragment whose conservative retention cost is twenty-five bytes.
      *

@@ -14,6 +14,7 @@ import io.netty.util.ReferenceCountUtil;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -51,6 +52,18 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
             throw new IllegalArgumentException("Invalid ordering cursor");
         }
         channels[channel].skipTo(UINT.B3.plus(lastOrderIndex, 1));
+    }
+
+    /**
+     * Delivers consecutive queued payloads made ready by a cursor reset without waiting for another packet.
+     * Call after publishing the application's phase-change event on the connection event loop.
+     *
+     * @param output consumer taking each payload's existing reference for downstream delivery
+     */
+    public final void drainReadyFrames(final Consumer<FrameData> output) {
+        for (final OrderedChannelPacketQueue channel : channels) {
+            channel.drainReady(output);
+        }
     }
 
     /**
@@ -216,6 +229,19 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
                 queuedBytes -= data.getDataSize() + Frame.HEADER_SIZE;
             }
             return data;
+        }
+
+        /**
+         * Advances across consecutive queued positions, returning each reservation before delivery.
+         *
+         * @param output consumer taking ownership of every newly deliverable payload
+         */
+        private void drainReady(final Consumer<FrameData> output) {
+            FrameData data;
+            while ((data = take(UINT.B3.plus(lastOrderIndex, 1))) != null) {
+                lastOrderIndex = UINT.B3.plus(lastOrderIndex, 1);
+                output.accept(data);
+            }
         }
 
         /** Releases every retained queued payload without changing the lane's counter history. */
