@@ -98,7 +98,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
      * Adds a deferred initializer that installs the parent-to-application event bridge when the parent registers.
      */
     private void setupDefaultPipeline() {
-        parent().pipeline().addLast(new ChannelInitializer<Channel>() {
+        super.parent().pipeline().addLast(new ChannelInitializer<Channel>() {
             /**
              * Installs the event bridge after parent registration, before established transport events reach the tail.
              *

@@ -44,8 +44,8 @@ public class RakNetClientChannel extends DatagramChannelProxy {
      */
     public RakNetClientChannel(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         super(ioChannelSupplier);
-        connectPromise = newPromise();
-        addDefaultPipeline();
+        connectPromise = pipeline.newPromise();
+        installClientPipeline(new ClientHandler());
     }
 
     /**
@@ -55,8 +55,8 @@ public class RakNetClientChannel extends DatagramChannelProxy {
      */
     public RakNetClientChannel(final Class<? extends DatagramChannel> ioChannelType) {
         super(ioChannelType);
-        connectPromise = newPromise();
-        addDefaultPipeline();
+        connectPromise = pipeline.newPromise();
+        installClientPipeline(new ClientHandler());
     }
 
     /**
@@ -91,11 +91,13 @@ public class RakNetClientChannel extends DatagramChannelProxy {
     }
 
     /**
-     * Installs client socket routing and standard RakNet handlers, then closes the channel on handshake failure.
+     * Installs the selected socket router and protocol stages without invoking subclass hooks during construction.
+     *
+     * @param handler connection-local router placed before the standard RakNet stages
      */
-    protected void addDefaultPipeline() {
-        pipeline()
-                .addLast(newClientHandler())
+    private void installClientPipeline(final ChannelHandler handler) {
+        pipeline
+                .addLast(handler)
                 .addLast(RakNetClient.DefaultClientInitializer.INSTANCE);
         connectPromise.addListener(res -> {
             if (!res.isSuccess()) {
@@ -104,14 +106,7 @@ public class RakNetClientChannel extends DatagramChannelProxy {
         });
     }
 
-    /**
-     * Creates the connection-local bridge between the RakNet pipeline and its UDP listener.
-     *
-     * @return a fresh handler whose enclosing instance owns the client socket and handshake promise
-     */
-    protected ChannelHandler newClientHandler() {
-        return new ClientHandler();
-    }
+
 
     /**
      * Starts negotiation after UDP connect and filters incoming datagrams to the selected remote endpoint.
@@ -143,6 +138,8 @@ public class RakNetClientChannel extends DatagramChannelProxy {
                         //start connection process
                         pipeline().replace(ConnectionInitializer.NAME, ConnectionInitializer.NAME,
                                 new ConnectionInitializer(connectPromise));
+                    } else {
+                        connectPromise.tryFailure(udpConnectResult.cause());
                     }
                 });
                 final PromiseCombiner combiner = new PromiseCombiner();

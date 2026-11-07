@@ -33,6 +33,7 @@ import java.util.function.Supplier;
  * Provides a RakNet pipeline over a backing datagram channel without giving the two pipelines the same identity.
  * Socket state, event-loop execution and attributes come from the listener. Outbound operations cross a
  * promise bridge, while selected inbound socket events are relayed into the proxy pipeline.
+ * Install custom handlers through Netty bootstrap initializers after channel construction.
  */
 public class DatagramChannelProxy implements Channel {
 
@@ -60,9 +61,9 @@ public class DatagramChannelProxy implements Channel {
     public DatagramChannelProxy(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         this.ioChannelSupplier = ioChannelSupplier;
         listener = ioChannelSupplier.get();
-        pipeline = newChannelPipeline();
+        pipeline = createDefaultPipeline();
         listener.pipeline().addLast(LISTENER_HANDLER_NAME, new ListenerInboundProxy());
-        pipeline()
+        pipeline
                 .addLast(LISTENER_HANDLER_NAME, new ListnerOutboundProxy())
                 .addLast(new FlushConsolidationHandler(
                         256, true));
@@ -580,11 +581,11 @@ public class DatagramChannelProxy implements Channel {
     }
 
     /**
-     * Creates the proxy pipeline with quiet handling for otherwise unhandled closed-channel failures.
+     * Creates the constructor-owned pipeline without dispatching into a partially initialized subclass.
      *
-     * @return pipeline whose channel identity is this proxy
+     * @return protocol pipeline bound to this proxy's channel identity
      */
-    protected DefaultChannelPipeline newChannelPipeline() {
+    private DefaultChannelPipeline createDefaultPipeline() {
         return new DefaultChannelPipeline(this) {
             /**
              * Consumes a terminal closed-channel failure while leaving other unhandled exceptions to Netty's normal reporting.

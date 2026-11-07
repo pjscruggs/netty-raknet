@@ -67,7 +67,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
      */
     public RakNetServerChannel(final Supplier<? extends DatagramChannel> ioChannelSupplier) {
         super(ioChannelSupplier);
-        addDefaultPipeline();
+        installServerPipeline(new ServerHandler());
     }
 
     /**
@@ -77,7 +77,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
      */
     public RakNetServerChannel(final Class<? extends DatagramChannel> ioChannelType) {
         super(ioChannelType);
-        addDefaultPipeline();
+        installServerPipeline(new ServerHandler());
     }
 
     /**
@@ -136,23 +136,18 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
     }
 
     /**
-     * Enables socket address reuse and installs peer routing before the default offline admission handlers.
+     * Installs the selected peer router and admission stages without invoking subclass hooks during construction.
+     *
+     * @param handler listener-owned router placed before offline admission processing
      */
-    protected void addDefaultPipeline() {
+    private void installServerPipeline(final ChannelHandler handler) {
         listener.config().setReuseAddress(true);
-        pipeline()
-                .addLast(newServerHandler())
+        pipeline
+                .addLast(handler)
                 .addLast(RakNetServer.DefaultDatagramInitializer.INSTANCE);
     }
 
-    /**
-     * Creates a connection-local router that owns access to this listener's child map.
-     *
-     * @return fresh listener handler for child creation and datagram dispatch
-     */
-    protected ChannelHandler newServerHandler() {
-        return new ServerHandler();
-    }
+
 
     /**
      * Creates an unregistered peer transport and its application wrapper without adding it to the peer map.
@@ -347,7 +342,12 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
          */
         final Map.Entry<AttributeKey<?>, Object>[] childAttrs;
 
-        {
+        /**
+         * Captures bootstrap settings after the server acceptor has been installed.
+         *
+         * @throws IllegalStateException if the installed Netty bootstrap layout cannot be read
+         */
+        ChannelParameters() {
             try {
                 final Class<? extends ChannelHandler> acceptorClass = (Class<? extends ChannelHandler>) Class.forName("io.netty.bootstrap.ServerBootstrap$ServerBootstrapAcceptor");
                 ChannelHandler handler = pipeline().get(acceptorClass);
@@ -375,8 +375,8 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
                     childAttrsField.setAccessible(true);
                     this.childAttrs = (Map.Entry<AttributeKey<?>, Object>[]) childAttrsField.get(handler);
                 }
-            } catch (Throwable t) {
-                throw new RuntimeException(t);
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Cannot read Netty server bootstrap settings", exception);
             }
         }
     }

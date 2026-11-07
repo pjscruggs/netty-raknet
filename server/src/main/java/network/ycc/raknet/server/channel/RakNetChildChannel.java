@@ -120,14 +120,12 @@ public class RakNetChildChannel extends AbstractChannel {
         config.setServerId(parent.config().getOption(RakNet.SERVER_ID));
         this.applicationChannel = new RakNetApplicationChannel(this);
         pipeline().addLast(WRITE_HANDLER_NAME, new WriteHandler());
-        addDefaultPipeline();
+        installChildPipeline();
     }
 
-    /**
-     * Installs peer framing and deferred handshake setup, with paired-channel closure when negotiation fails.
-     */
-    protected void addDefaultPipeline() {
-        pipeline().addLast(RakNetServer.DefaultChildInitializer.INSTANCE);
+    /** Installs constructor-owned protocol stages without calling an override before subclass initialization. */
+    private void installChildPipeline() {
+        super.pipeline().addLast(RakNetServer.DefaultChildInitializer.INSTANCE);
         connectPromise.addListener(x2 -> {
             if (!x2.isSuccess()) {
                 RakNetChildChannel.this.applicationChannel.close();
