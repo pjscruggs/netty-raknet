@@ -2,9 +2,7 @@ package network.ycc.raknet.pipeline;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.TooLongFrameException;
-import network.ycc.raknet.config.DefaultConfig;
 import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.frame.FrameData;
 import org.junit.jupiter.api.Test;
@@ -19,7 +17,7 @@ class OrderedReceiveBudgetTest {
     /** Overflow closes the connection and releases every lane, while a duplicate consumes no budget. */
     @Test
     void lanesShareOneReceiveBudget() {
-        final BudgetChannel channel = new BudgetChannel();
+        final RakNetEmbeddedChannel channel = new RakNetEmbeddedChannel(new FrameOrderIn());
         channel.config().setMaxQueuedBytes(52);
         final Frame first = frame(0, 1);
         final Frame second = frame(1, 1);
@@ -44,7 +42,7 @@ class OrderedReceiveBudgetTest {
     /** Receiving a missing prefix drains its queued successor and makes that budget reusable. */
     @Test
     void deliveryReturnsReceiveBudget() {
-        final BudgetChannel channel = new BudgetChannel();
+        final RakNetEmbeddedChannel channel = new RakNetEmbeddedChannel(new FrameOrderIn());
         channel.config().setMaxQueuedBytes(26);
         try {
             assertFalse(channel.writeInbound(frame(0, 1)));
@@ -63,7 +61,7 @@ class OrderedReceiveBudgetTest {
     /** A phase reset releases skipped payloads and returns their allowance for another lane. */
     @Test
     void synchronizationReturnsReceiveBudget() {
-        final BudgetChannel channel = new BudgetChannel();
+        final RakNetEmbeddedChannel channel = new RakNetEmbeddedChannel(new FrameOrderIn());
         channel.config().setMaxQueuedBytes(26);
         try {
             assertFalse(channel.writeInbound(frame(0, 1)));
@@ -94,27 +92,4 @@ class OrderedReceiveBudgetTest {
         }
     }
 
-    /** Supplies real transport configuration to the decoder without sockets or asynchronous timers. */
-    private static final class BudgetChannel extends EmbeddedChannel {
-        /** Lazily initialized because the superclass can request configuration during construction. */
-        private DefaultConfig transportConfig;
-
-        /** Installs the production ordering decoder on this isolated event loop. */
-        private BudgetChannel() {
-            super(new FrameOrderIn());
-        }
-
-        /**
-         * Returns persistent RakNet settings whose queue budget is selected by each test.
-         *
-         * @return this channel's transport configuration
-         */
-        @Override
-        public DefaultConfig config() {
-            if (transportConfig == null) {
-                transportConfig = new DefaultConfig(this);
-            }
-            return transportConfig;
-        }
-    }
 }

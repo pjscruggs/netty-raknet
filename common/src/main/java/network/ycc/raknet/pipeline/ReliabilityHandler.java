@@ -7,6 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.CodecException;
 import io.netty.handler.codec.CorruptedFrameException;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.util.ReferenceCountUtil;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
@@ -161,8 +162,14 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
         if (msg instanceof Frame) {
             final Frame frame = (Frame) msg;
-            queueFrame(frame);
-            frame.setPromise(promise);
+            try {
+                queueFrame(frame);
+                frame.setPromise(promise);
+            } catch (CodecException failure) {
+                frame.release();
+                promise.tryFailure(failure);
+                return;
+            }
         } else {
             ctx.write(msg, promise);
         }
@@ -349,16 +356,20 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
      *
      * @param frame owned reference to transfer into the queue on success
      * @throws CorruptedFrameException if the estimated frame size exceeds the configured MTU
+     * @throws TooLongFrameException if accepting the frame would exceed the unsent queue budget
      */
     protected void queueFrame(final Frame frame) {
-        final int roughPacketSize = frame.getRoughPacketSize();
+        final long roughPacketSize = (long) frame.getDataSize() + Frame.HEADER_SIZE;
         if (roughPacketSize > config.getMTU()) {
             throw new CorruptedFrameException(
                     "Finished frame larger than the MTU by " + (roughPacketSize - config
                             .getMTU()));
         }
+        if (roughPacketSize + queuedBytes > config.getMaxQueuedBytes()) {
+            throw new TooLongFrameException("Unsent frame queue exceeds the connection budget");
+        }
         frameQueue.add(frame);
-        this.queuedBytes += roughPacketSize;
+        this.queuedBytes += (int) roughPacketSize;
         config.getMetrics().currentQueuedBytes(this.queuedBytes);
     }
 
@@ -526,17 +537,38 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             adjustResendGauge(-1);
             config.getMetrics().bytesRecalled(frameSet.getRoughSize());
             frameSet.touch("Recalled");
-            frameSet.createFrames(frame -> {
-                if (frame.getReliability().isReliable) {
-                    queueFrame(frame);
-                } else {
-                    frame.getPromise().trySuccess(); //TODO: maybe need a fail here
-                    frame.release();
-                }
-            });
+            frameSet.createFrames(this::recallFrame);
             tryProduceFrameSets();
+        } catch (CodecException failure) {
+            frameSet.fail(failure);
+            clearQueue(failure);
+            throw failure;
         } finally {
             frameSet.release();
+        }
+    }
+
+    /**
+     * Transfers a retained retry reference to the queue or releases it on rejection.
+     * Unreliable payloads are never retried and may have no application promise attached.
+     *
+     * @param frame retry reference distinct from the owning frame set's reference
+     * @throws CodecException if the frame no longer fits the current MTU or queue budget
+     */
+    private void recallFrame(final Frame frame) {
+        if (frame.getReliability().isReliable) {
+            try {
+                queueFrame(frame);
+            } catch (CodecException failure) {
+                frame.release();
+                throw failure;
+            }
+        } else {
+            final ChannelPromise promise = frame.getPromise();
+            if (promise != null) {
+                promise.trySuccess();
+            }
+            frame.release();
         }
     }
 
