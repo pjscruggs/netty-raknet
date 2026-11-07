@@ -3,6 +3,7 @@ package network.ycc.raknet.client.channel;
 import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -16,6 +17,10 @@ import io.netty.util.concurrent.PromiseCombiner;
 import network.ycc.raknet.RakNet;
 
 import java.net.SocketAddress;
+import java.nio.channels.AlreadyConnectedException;
+import java.nio.channels.ConnectionPendingException;
+import java.nio.channels.ClosedChannelException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 
 /**
@@ -43,6 +48,11 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
      * Application-visible activity state, published when parent lifecycle events reach the application loop.
      */
     private volatile boolean active;
+
+    /** Application-loop-owned completion waiting for both transport success and application activity. */
+    private ChannelPromise pendingConnect;
+    /** Whether the parent connection result has succeeded for the current application attempt. */
+    private boolean parentConnected;
 
     /**
      * Creates an unregistered application channel backed by a default NIO RakNet client transport.
@@ -223,6 +233,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     protected void doDisconnect() {
 //        close();
         this.active = false;
+        failPendingConnect(new ClosedChannelException());
         parent().close();
     }
 
@@ -233,6 +244,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
     protected void doClose() {
 //        close();
         this.active = false;
+        failPendingConnect(new ClosedChannelException());
         parent().close();
     }
 
@@ -489,7 +501,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
         };
 
         /**
-         * Registers the parent transport when necessary and forwards the combined UDP/RakNet connection result.
+         * Registers the parent and waits for both negotiated transport and application activation before success.
          *
          * @param remoteAddress target RakNet server endpoint
          * @param localAddress optional local bind endpoint
@@ -497,16 +509,70 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
          */
         @Override
         public void connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
-            registerParent();
-            final ChannelFuture future = parent().connect(remoteAddress, localAddress);
-            future.addListener(RakNet.INTERNAL_WRITE_LISTENER);
-            future.addListener(future1 -> {
-                if (future1.isSuccess()) {
-                    promise.trySuccess();
-                } else {
-                    promise.tryFailure(future1.cause());
-                }
-            });
+            if (pendingConnect != null) {
+                promise.tryFailure(new ConnectionPendingException());
+                return;
+            }
+            if (active) {
+                promise.tryFailure(new AlreadyConnectedException());
+                return;
+            }
+            pendingConnect = promise;
+            parentConnected = false;
+            try {
+                registerParent();
+                final ChannelFuture future = parent().connect(remoteAddress, localAddress);
+                future.addListener(RakNet.INTERNAL_WRITE_LISTENER);
+                future.addListener((ChannelFutureListener) result -> {
+                    try {
+                        eventLoop().execute(() -> publishConnectResult(result));
+                    } catch (RejectedExecutionException failure) {
+                        promise.tryFailure(failure);
+                        parent().close();
+                    }
+                });
+            } catch (RuntimeException failure) {
+                failPendingConnect(failure);
+            }
+        }
+    }
+
+    /**
+     * Records the parent's result on the application loop without reporting success before activation.
+     *
+     * @param result completed UDP and RakNet negotiation future
+     */
+    private void publishConnectResult(final ChannelFuture result) {
+        if (!result.isSuccess()) {
+            failPendingConnect(result.cause());
+        } else if (!isOpen()) {
+            failPendingConnect(new ClosedChannelException());
+        } else {
+            parentConnected = true;
+            completePendingConnect();
+        }
+    }
+
+    /** Completes application connection only after both successful negotiation and visible activation. */
+    private void completePendingConnect() {
+        if (pendingConnect != null && parentConnected && active) {
+            final ChannelPromise promise = pendingConnect;
+            pendingConnect = null;
+            promise.trySuccess();
+        }
+    }
+
+    /**
+     * Fails an unfinished application connection and drops its ownership before invoking listeners.
+     *
+     * @param cause connection or closure failure reported to the caller
+     */
+    private void failPendingConnect(final Throwable cause) {
+        parentConnected = false;
+        if (pendingConnect != null) {
+            final ChannelPromise promise = pendingConnect;
+            pendingConnect = null;
+            promise.tryFailure(cause);
         }
     }
 
@@ -541,6 +607,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
             RakNetClientThreadedChannel.this.eventLoop().execute(() -> {
                 RakNetClientThreadedChannel.this.active = true;
                 RakNetClientThreadedChannel.this.pipeline().fireChannelActive();
+                completePendingConnect();
             });
         }
 
@@ -553,6 +620,7 @@ public class RakNetClientThreadedChannel extends AbstractChannel {
         public void channelInactive(final ChannelHandlerContext ctx) {
             RakNetClientThreadedChannel.this.eventLoop().execute(() -> {
                 RakNetClientThreadedChannel.this.active = false;
+                failPendingConnect(new ClosedChannelException());
                 RakNetClientThreadedChannel.this.pipeline().fireChannelInactive();
             });
         }
