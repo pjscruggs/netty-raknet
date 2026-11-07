@@ -152,7 +152,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
         } else if (option == RakNet.RETRY_DELAY_NANOS) {
             retryDelayNanos = (Long) value;
         } else if (option == RakNet.MAX_CONNECTIONS) {
-            maxConnections = (Integer) value;
+            setMaxConnections((Integer) value);
         } else {
             return super.setOption(option, value);
         }
@@ -457,9 +457,13 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
      * Sets the child-connection count at which a server refuses new connection attempts.
      *
      * @param maxConnections nonnegative maximum number of simultaneous child connections
+     * @throws IllegalArgumentException if the maximum is negative
      */
     @Override
     public void setMaxConnections(final int maxConnections) {
+        if (maxConnections < 0) {
+            throw new IllegalArgumentException("Maximum connections must not be negative");
+        }
         this.maxConnections = maxConnections;
     }
 

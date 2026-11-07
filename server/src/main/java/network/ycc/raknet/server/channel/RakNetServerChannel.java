@@ -223,7 +223,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
                             "Provided local address is not an InetSocketAddress");
                 }
                 final Channel existingChild = getChildChannel(remoteAddress);
-                if (childMap.size() > config.getMaxConnections() && existingChild == null) {
+                if (childMap.size() >= config.getMaxConnections() && existingChild == null) {
                     final Packet packet = new NoFreeConnections(
                             config.getMagic(), config.getServerId());
                     final ByteBuf buf = ctx.alloc().ioBuffer(packet.sizeHint());
