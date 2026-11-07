@@ -37,6 +37,21 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
     }
 
     /**
+     * Abandons queued positions through a validated synchronization cursor on the connection event loop.
+     * Later queued positions remain owned by the lane and stale cursors cannot rewind delivery.
+     *
+     * @param channel lane to advance, from zero through seven
+     * @param lastOrderIndex final superseded twenty-four-bit position
+     * @throws IllegalArgumentException if the cursor is not a twenty-four-bit value
+     */
+    public final void skipOrderedThrough(final int channel, final int lastOrderIndex) {
+        if (!UINT.fits(lastOrderIndex, 24)) {
+            throw new IllegalArgumentException("Invalid ordering cursor");
+        }
+        channels[channel].skipTo(UINT.B3.plus(lastOrderIndex, 1));
+    }
+
+    /**
      * Releases payloads retained behind missing ordering positions when this connection stage is removed.
      *
      * @param ctx pipeline context being detached

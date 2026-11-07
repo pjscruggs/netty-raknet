@@ -31,6 +31,24 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
     protected final Int2ObjectOpenHashMap<Builder> pendingPackets = new Int2ObjectOpenHashMap<>();
 
     /**
+     * Releases incomplete ordered packets in a superseded lane on the connection event loop.
+     * Other lanes and unordered fragments retain their original ownership and assembly progress.
+     *
+     * @param channel ordering lane whose partial packets can no longer be delivered
+     */
+    public final void discardOrderedChannel(final int channel) {
+        final java.util.Iterator<Builder> iterator = pendingPackets.values().iterator();
+        while (iterator.hasNext()) {
+            final Builder builder = iterator.next();
+            final Frame sample = builder.samplePacket;
+            if (sample.getReliability().isOrdered && sample.getOrderChannel() == channel) {
+                iterator.remove();
+                builder.release();
+            }
+        }
+    }
+
+    /**
      * Releases every incomplete packet's sample frame, assembled bytes and still-queued fragments.
      *
      * @param ctx pipeline context being detached

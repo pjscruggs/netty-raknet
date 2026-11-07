@@ -26,6 +26,25 @@ public class FrameOrderOut extends MessageToMessageEncoder<FramedPacket> {
     protected int[] nextSequenceIndex = new int[8];
 
     /**
+     * Reports the number of independent ordering lanes without exposing their mutable counters.
+     *
+     * @return supported lane count
+     */
+    public final int channelCount() {
+        return nextOrderIndex.length;
+    }
+
+    /**
+     * Reads the last assigned order position on the connection event loop without consuming another position.
+     *
+     * @param channel lane whose already assigned traffic is being superseded
+     * @return twenty-four-bit predecessor of the next outbound position
+     */
+    public final int lastOrderIndex(final int channel) {
+        return UINT.B3.plus(nextOrderIndex[channel], -1);
+    }
+
+    /**
      * Encodes a packet, assigns counters required by its delivery mode, and transfers a new frame downstream.
      * The temporary payload reference is released after the frame retains it.
      *

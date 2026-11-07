@@ -56,6 +56,61 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     /** Installed context used by deferred frame production after acknowledgement callbacks. */
     protected ChannelHandlerContext ctx;
 
+    /**
+     * Reads the next datagram sequence on the owning event loop without exposing mutable scheduler state.
+     *
+     * @return twenty-four-bit identifier reserved for the next produced frame set
+     */
+    public final int nextSendSequence() {
+        return nextSendSeqId;
+    }
+
+    /**
+     * Advances receive-gap tracking after the application protocol abandons older datagrams.
+     * Existing acknowledgements remain valid and a delayed marker cannot rewind the newest received sequence.
+     *
+     * @param sequence twenty-four-bit synchronization cursor
+     * @throws IllegalArgumentException if the cursor cannot be represented on the wire
+     */
+    public final void skipReceivedThrough(final int sequence) {
+        if (!UINT.fits(sequence, 24)) {
+            throw new IllegalArgumentException("Invalid receive sequence");
+        }
+        if (UINT.B3.minusWrap(sequence, lastReceivedSeqId) > 0) {
+            lastReceivedSeqId = sequence;
+        }
+        nackSet.removeIf(value -> UINT.B3.minusWrap(value, sequence) <= 0);
+    }
+
+    /**
+     * Transfers all unsent and outstanding frame references to the caller for an event-loop synchronization pause.
+     * Returned frames retain their original promises. The caller must restore or release every reference.
+     *
+     * @return independently owned list of detached frames, with no live scheduler collections exposed
+     */
+    public final java.util.List<Frame> takePendingFrames() {
+        final java.util.List<Frame> frames = new java.util.ArrayList<>(frameQueue);
+        frameQueue.clear();
+        for (final FrameSet frameSet : pendingFrameSets.values()) {
+            frameSet.createFrames(frames::add);
+            frameSet.release();
+        }
+        pendingFrameSets.clear();
+        queuedBytes = 0;
+        config.getMetrics().currentQueuedBytes(0);
+        return frames;
+    }
+
+    /**
+     * Returns one paused frame to the scheduler on its event loop and updates queued-byte accounting.
+     * Ownership transfers only after the queue accepts the frame. Its existing write promise is preserved.
+     *
+     * @param frame caller-owned retained frame from a synchronization pause
+     */
+    public final void restorePendingFrame(final Frame frame) {
+        queueFrame(frame);
+    }
+
     /** Deferred event-loop action that fills newly available send slots and flushes the resulting writes. */
     protected Runnable frameSetProduction = () -> {
         this.produceFrameSets(ctx);
