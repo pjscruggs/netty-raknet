@@ -30,6 +30,9 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
     /** Incomplete split groups keyed by split identifier, owning all buffered fragment references. */
     protected final Int2ObjectOpenHashMap<Builder> pendingPackets = new Int2ObjectOpenHashMap<>();
 
+    /** Conservative bytes owned by all incomplete groups, including one header allowance per fragment. */
+    private long pendingBytes;
+
     /**
      * Releases incomplete ordered packets in a superseded lane on the connection event loop.
      * Other lanes and unordered fragments retain their original ownership and assembly progress.
@@ -43,6 +46,7 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
             final Frame sample = builder.samplePacket;
             if (sample.getReliability().isOrdered && sample.getOrderChannel() == channel) {
                 iterator.remove();
+                pendingBytes -= builder.retainedBytes;
                 builder.release();
             }
         }
@@ -59,6 +63,7 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
         super.handlerRemoved(ctx);
         pendingPackets.values().forEach(Builder::release);
         pendingPackets.clear();
+        pendingBytes = 0;
     }
 
     /**
@@ -85,7 +90,7 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
      * A rejected group releases all accumulated references so malformed metadata cannot strand its buffers.
      *
      * @param allocator allocator for assembled payloads
-     * @param maxBytes configured maximum estimated size of one assembled packet
+     * @param maxBytes configured ceiling for one packet and for all incomplete groups combined
      * @param frame borrowed input fragment, retained only while its group is incomplete
      * @param output destination taking ownership of completed frames
      * @throws CorruptedFrameException if fragment indices or group metadata are inconsistent
@@ -94,26 +99,60 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
     void join(final ByteBufAllocator allocator, final int maxBytes,
             final Frame frame, final List<Object> output) {
         final int splitID = frame.getSplitId();
-        Builder partial = pendingPackets.get(splitID);
+        Builder partial = takePending(splitID);
         try {
             validateFragment(frame, maxBytes);
+            validateBudget(frame, partial, maxBytes);
             if (partial == null) {
                 partial = Builder.create(allocator, frame);
             } else {
                 partial.add(frame);
             }
             if (partial.isDone()) {
-                pendingPackets.remove(splitID);
                 output.add(partial.finish());
             } else {
                 pendingPackets.put(splitID, partial);
+                pendingBytes += partial.retainedBytes;
             }
         } catch (RuntimeException exception) {
-            pendingPackets.remove(splitID);
             if (partial != null) {
                 partial.release();
             }
             throw exception;
+        }
+    }
+
+    /**
+     * Detaches a group and its budget together before extending or rejecting it.
+     * A failed extension can then release that group without leaving stale accounting behind.
+     *
+     * @param splitId wire identifier of the group being processed
+     * @return detached group owned by the caller, or null for its first fragment
+     */
+    private Builder takePending(final int splitId) {
+        final Builder partial = pendingPackets.remove(splitId);
+        if (partial != null) {
+            pendingBytes -= partial.retainedBytes;
+        }
+        return partial;
+    }
+
+    /**
+     * Checks aggregate retention before acquiring a new fragment reference or allocating a group.
+     * Duplicate fragment positions consume no additional budget. A header allowance bounds metadata
+     * growth even when a peer sends many tiny fragments in different incomplete groups.
+     *
+     * @param frame borrowed fragment about to enter its group
+     * @param partial detached existing group, or null for a new group
+     * @param maxBytes connection-wide reassembly budget
+     * @throws TooLongFrameException if retaining this fragment would exceed the connection budget
+     */
+    private void validateBudget(final Frame frame, final Builder partial, final int maxBytes) {
+        final long currentBytes = partial == null ? 0 : partial.retainedBytes;
+        final int additionalBytes = partial == null || partial.accepts(frame.getSplitIndex())
+                ? frame.getRoughPacketSize() : 0;
+        if (pendingBytes + currentBytes + additionalBytes > maxBytes) {
+            throw new TooLongFrameException("Incomplete fragment groups exceed the receive budget");
         }
     }
 
@@ -151,6 +190,8 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
         protected int orderId;
         /** Delivery mode captured from the sample for reassembly-state inspection. */
         protected FrameData.Reliability reliability;
+        /** Sum of accepted fragment sizes and header allowances, unchanged by contiguous assembly. */
+        private long retainedBytes;
 
         /**
          * Starts the pending-fragment index small so a peer cannot force allocation for fragments not yet received.
@@ -211,11 +252,22 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
                     || packet.getSplitCount() != samplePacket.getSplitCount()) {
                 throw new CorruptedFrameException("Inconsistent RakNet fragment group");
             }
-            if (!queue.containsKey(packet.getSplitIndex()) && packet.getSplitIndex() >= splitIdx) {
+            if (accepts(packet.getSplitIndex())) {
                 queue.put(packet.getSplitIndex(), packet.retainedFragmentData());
+                retainedBytes += packet.getRoughPacketSize();
                 update();
             }
             Constants.packetLossCheck(queue.size(), "packet defragment queue");
+        }
+
+        /**
+         * Distinguishes a new fragment position from an assembled or still-queued duplicate.
+         *
+         * @param index validated position within this group's advertised fragment count
+         * @return whether accepting the position requires another payload reference
+         */
+        private boolean accepts(final int index) {
+            return index >= splitIdx && !queue.containsKey(index);
         }
 
         /** Transfers consecutively available fragment references from the pending index into the composite. */
