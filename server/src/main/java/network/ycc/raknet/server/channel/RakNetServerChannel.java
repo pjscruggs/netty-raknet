@@ -237,17 +237,8 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
                     }
                     promise.tryFailure(new IllegalStateException("Too many connections"));
                 } else if (existingChild == null) {
-                    final RakNetChildChannel child = newChild((InetSocketAddress) remoteAddress, (InetSocketAddress) localAddress, channel -> {
-                        EventLoop applicationEventLoop = providedApplicationEventLoop;
-                        if (applicationEventLoop != null) {
-                            ChannelParameters parameters = getChannelParameters();
-                            channel.pipeline().addLast(parameters.childHandler);
-                            ChannelUtil.applyChannelParameters(channel, parameters);
-                            applicationEventLoop.register(channel);
-                        } else {
-                            pipeline().fireChannelRead(channel).fireChannelReadComplete(); // register
-                        }
-                    });
+                    final RakNetChildChannel child = newChild((InetSocketAddress) remoteAddress,
+                            (InetSocketAddress) localAddress, this::registerApplication);
                     child.closeFuture().addListener(v ->
                             eventLoop().execute(() -> removeChild(remoteAddress, child))
                     );
@@ -263,6 +254,28 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
                 promise.tryFailure(e);
                 throw e;
             }
+        }
+
+        /**
+         * Registers an accepted application on its configured loop or through the bootstrap acceptor.
+         * An explicit-loop registration failure closes its parent transport and releases deferred deliveries.
+         *
+         * @param channel application wrapper whose parent owns the peer's transport resources
+         */
+        private void registerApplication(final Channel channel) {
+            final EventLoop applicationEventLoop = providedApplicationEventLoop;
+            if (applicationEventLoop == null) {
+                pipeline().fireChannelRead(channel).fireChannelReadComplete();
+                return;
+            }
+            final ChannelParameters parameters = getChannelParameters();
+            channel.pipeline().addLast(parameters.childHandler);
+            ChannelUtil.applyChannelParameters(channel, parameters);
+            applicationEventLoop.register(channel).addListener(registration -> {
+                if (!registration.isSuccess()) {
+                    channel.parent().close();
+                }
+            });
         }
 
         /**
@@ -284,8 +297,13 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
                         ctx.fireChannelRead(datagram.retain());
                     } else if (child != null && child.isOpen() && child.config().isAutoRead()) {
                         final ByteBuf retained = datagram.content().retain();
-                        child.eventLoop().execute(() ->
-                            child.pipeline().fireChannelRead(retained).fireChannelReadComplete());
+                        try {
+                            child.eventLoop().execute(() ->
+                                child.pipeline().fireChannelRead(retained).fireChannelReadComplete());
+                        } catch (java.util.concurrent.RejectedExecutionException failure) {
+                            retained.release();
+                            throw failure;
+                        }
                     }
                 } finally {
                     datagram.release();

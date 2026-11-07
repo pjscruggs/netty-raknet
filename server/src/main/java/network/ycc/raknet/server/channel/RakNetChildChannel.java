@@ -23,14 +23,13 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.ReferenceCountUtil;
 
 import java.net.InetSocketAddress;
 import java.net.NoRouteToHostException;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.util.LinkedList;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -82,7 +81,7 @@ public class RakNetChildChannel extends AbstractChannel {
     /**
      * Deferred lifecycle and inbound callbacks awaiting application registration. Payload callbacks hold message ownership until run.
      */
-    protected final Queue<Runnable> pendingApplicationChannelOperations = new LinkedList<>();
+    private final PendingApplicationEvents pendingApplicationChannelOperations = new PendingApplicationEvents();
     /**
      * Server-supplied callback that must arrange application-channel registration after transport negotiation.
      */
@@ -148,23 +147,51 @@ public class RakNetChildChannel extends AbstractChannel {
     }
 
     /**
-     * Requests application registration once, or drains deferred callbacks after registration has completed.
-     * Call from the transport event loop, which owns the pending callback queue. A queued callback failure is
-     * reported without preventing subsequent callbacks from running.
+     * Requests application registration once, or drains deferred deliveries when registration completes.
+     * The transport loop owns the queue. Registration or delivery failure closes the transport so queued
+     * references are released even when no further packet arrives.
      */
     protected void registerApplicationChannelIfNecessary() {
-        if (!this.applicationChannel.isRegistered()) {
-            if (isRegisteringApplicationChannel.compareAndSet(false, true)) {
-                registerChannel.accept(this.applicationChannel);
-            }
-        } else if (!pendingApplicationChannelOperations.isEmpty()) {
-            Runnable r;
-            while ((r = pendingApplicationChannelOperations.poll()) != null) {
-                try {
-                    r.run();
-                } catch (Throwable t) {
-                    t.printStackTrace();
+        try {
+            if (!this.applicationChannel.isRegistered()) {
+                if (isOpen() && isRegisteringApplicationChannel.compareAndSet(false, true)) {
+                    registerChannel.accept(this.applicationChannel);
                 }
+            } else {
+                pendingApplicationChannelOperations.drain();
+            }
+        } catch (RuntimeException failure) {
+            close();
+            throw failure;
+        }
+    }
+
+    /**
+     * Transfers an event into immediate application delivery or the bounded registration queue.
+     * Failed admission and closed transports release the supplied reference without running its callback.
+     *
+     * @param operation callback that transfers ownership into the application pipeline
+     * @param owned message or event released on failure, or null for lifecycle notifications
+     */
+    private void dispatchApplicationOperation(final Runnable operation, final Object owned) {
+        boolean transferred = false;
+        try {
+            registerApplicationChannelIfNecessary();
+            if (!isOpen()) {
+                return;
+            }
+            if (applicationChannel.isRegistered()) {
+                operation.run();
+            } else {
+                pendingApplicationChannelOperations.add(operation, owned, config.getMaxQueuedBytes());
+            }
+            transferred = true;
+        } catch (RuntimeException failure) {
+            close();
+            throw failure;
+        } finally {
+            if (!transferred) {
+                ReferenceCountUtil.release(owned);
             }
         }
     }
@@ -300,6 +327,7 @@ public class RakNetChildChannel extends AbstractChannel {
     @Override
     protected void doClose() {
         open = false;
+        pendingApplicationChannelOperations.clear();
         if (listener.isOpen()) {
             if (listener.isRegistered()) {
                 listener.close();
@@ -560,11 +588,7 @@ public class RakNetChildChannel extends AbstractChannel {
                     ctx.close();
                     return;
                 }
-                if (applicationChannel.isRegistered()) {
-                    channelActive0();
-                } else {
-                    pendingApplicationChannelOperations.add(this::channelActive0);
-                }
+                dispatchApplicationOperation(this::channelActive0, null);
             });
         }
 
@@ -579,18 +603,16 @@ public class RakNetChildChannel extends AbstractChannel {
         }
 
         /**
-         * Queues or schedules application deactivation depending on whether its registration has completed.
+         * Discards deliveries that can no longer reach an active application and notifies a registered application.
          *
          * @param ctx transport context reporting loss of activity
          * @throws Exception if application registration throws during this callback
          */
         @Override
         public void channelInactive(final ChannelHandlerContext ctx) throws Exception {
-            registerApplicationChannelIfNecessary();
+            pendingApplicationChannelOperations.clear();
             if (applicationChannel.isRegistered()) {
                 channelInactive0();
-            } else {
-                pendingApplicationChannelOperations.add(this::channelInactive0);
             }
         }
 
@@ -613,12 +635,7 @@ public class RakNetChildChannel extends AbstractChannel {
          */
         @Override
         public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-            registerApplicationChannelIfNecessary();
-            if (applicationChannel.isRegistered()) {
-                applicationChannel.pipeline().fireChannelRead(msg);
-            } else {
-                pendingApplicationChannelOperations.add(() -> applicationChannel.pipeline().fireChannelRead(msg));
-            }
+            dispatchApplicationOperation(() -> applicationChannel.pipeline().fireChannelRead(msg), msg);
         }
 
         /**
@@ -650,12 +667,7 @@ public class RakNetChildChannel extends AbstractChannel {
             if (evt == FlushTickHandler.FLUSH_CHECK_SIGNAL || evt instanceof FlushTickHandler.MissedFlushes) {
                 return;
             }
-            registerApplicationChannelIfNecessary();
-            if (applicationChannel.isRegistered()) {
-                applicationChannel.pipeline().fireUserEventTriggered(evt);
-            } else {
-                pendingApplicationChannelOperations.add(() -> applicationChannel.pipeline().fireUserEventTriggered(evt));
-            }
+            dispatchApplicationOperation(() -> applicationChannel.pipeline().fireUserEventTriggered(evt), evt);
         }
 
         /**
@@ -665,12 +677,7 @@ public class RakNetChildChannel extends AbstractChannel {
          */
         @Override
         public void channelWritabilityChanged(final ChannelHandlerContext ctx) {
-            registerApplicationChannelIfNecessary();
-            if (applicationChannel.isRegistered()) {
-                applicationChannel.pipeline().fireChannelWritabilityChanged();
-            } else {
-                pendingApplicationChannelOperations.add(() -> applicationChannel.pipeline().fireChannelWritabilityChanged());
-            }
+            dispatchApplicationOperation(() -> applicationChannel.pipeline().fireChannelWritabilityChanged(), null);
         }
 
         /**
@@ -681,12 +688,7 @@ public class RakNetChildChannel extends AbstractChannel {
          */
         @Override
         public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
-            registerApplicationChannelIfNecessary();
-            if (applicationChannel.isRegistered()) {
-                applicationChannel.pipeline().fireExceptionCaught(cause);
-            } else {
-                pendingApplicationChannelOperations.add(() -> applicationChannel.pipeline().fireExceptionCaught(cause));
-            }
+            dispatchApplicationOperation(() -> applicationChannel.pipeline().fireExceptionCaught(cause), null);
         }
     }
 
