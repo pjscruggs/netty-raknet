@@ -115,7 +115,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
     ChannelParameters getChannelParameters() {
         ChannelParameters parameters = this.channelParameters;
         if (parameters == null) {
-            parameters = this.channelParameters = new ChannelParameters();
+            parameters = this.channelParameters = new ChannelParameters(this);
         }
         return parameters;
     }
@@ -342,7 +342,7 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
      * The captured option and attribute arrays are the acceptor's existing tables, not defensive copies.
      */
     @SuppressWarnings("unchecked")
-    class ChannelParameters {
+    static final class ChannelParameters {
         /**
          * Bootstrap child group used to register each peer's transport pipeline.
          */
@@ -363,12 +363,13 @@ public class RakNetServerChannel extends DatagramChannelProxy implements ServerC
         /**
          * Captures bootstrap settings after the server acceptor has been installed.
          *
+         * @param server listener whose pipeline contains the bootstrap acceptor
          * @throws IllegalStateException if the installed Netty bootstrap layout cannot be read
          */
-        ChannelParameters() {
+        ChannelParameters(final RakNetServerChannel server) {
             try {
                 final Class<? extends ChannelHandler> acceptorClass = (Class<? extends ChannelHandler>) Class.forName("io.netty.bootstrap.ServerBootstrap$ServerBootstrapAcceptor");
-                ChannelHandler handler = pipeline().get(acceptorClass);
+                ChannelHandler handler = server.pipeline().get(acceptorClass);
 
                 {
                     final Field childGroupField = acceptorClass.getDeclaredField("childGroup");

@@ -3,7 +3,6 @@ package network.ycc.raknet.pipeline;
 import network.ycc.raknet.RakNet;
 import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.frame.FrameData;
-import network.ycc.raknet.utils.Constants;
 import network.ycc.raknet.utils.UINT;
 import java.util.function.Predicate;
 
@@ -285,7 +284,6 @@ public class FrameJoiner extends MessageToMessageDecoder<Frame> {
                 retainedBytes += packet.getRoughPacketSize();
                 update();
             }
-            Constants.packetLossCheck(queue.size(), "packet defragment queue");
         }
 
         /**

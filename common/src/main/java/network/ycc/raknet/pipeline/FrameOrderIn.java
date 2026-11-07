@@ -3,7 +3,6 @@ package network.ycc.raknet.pipeline;
 import network.ycc.raknet.RakNet;
 import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.frame.FrameData;
-import network.ycc.raknet.utils.Constants;
 import network.ycc.raknet.utils.UINT;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -84,13 +83,13 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
      * @param ctx connection closed when a frame selects an unsupported channel
      * @param frame input released by the decoder after successful or failed processing
      * @param list accepted payload references transferred to the next handler
-     * @throws CorruptedFrameException if ordered traffic selects a channel outside the protocol
+     * @throws CorruptedFrameException if a frame selects a channel outside the protocol
      * @throws TooLongFrameException if ordered traffic exceeds the combined receive budget
      */
     @Override
     protected void decode(final ChannelHandlerContext ctx, final Frame frame, final List<Object> list) {
         final int channel = frame.getOrderChannel();
-        if (frame.getReliability().isOrdered && (channel < 0 || channel >= channels.length)) {
+        if (channel < 0 || channel >= channels.length) {
             ctx.close();
             throw new CorruptedFrameException("Invalid RakNet ordering channel: " + channel);
         }
@@ -190,7 +189,6 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
          */
         protected void decodeOrdered(final Frame frame, final List<Object> list) {
             final int indexDiff = UINT.B3.minusWrap(frame.getOrderIndex(), lastOrderIndex);
-            Constants.packetLossCheck(indexDiff, "ordered difference");
             if (indexDiff == 1) { //got next packet in line
                 FrameData data = frame.retainedFrameData();
                 do { //process this packet, and any queued packets following in sequence
@@ -202,7 +200,6 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
                 // only new future data goes in the queue
                 enqueue(frame.getOrderIndex(), frame.retainedFrameData());
             }
-            Constants.packetLossCheck(queue.size(), "missed ordered packets");
         }
 
         /**

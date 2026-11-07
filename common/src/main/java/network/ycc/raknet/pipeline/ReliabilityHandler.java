@@ -18,7 +18,6 @@ import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.packet.FrameSet;
 import network.ycc.raknet.packet.Reliability;
 import network.ycc.raknet.pipeline.FlushTickHandler.MissedFlushes;
-import network.ycc.raknet.utils.Constants;
 import network.ycc.raknet.utils.UINT;
 
 import java.util.PriorityQueue;
@@ -173,7 +172,6 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         } else {
             ctx.write(msg, promise);
         }
-        Constants.packetLossCheck(pendingFrameSets.size(), "unconfirmed sent packets");
         FlushTickHandler.checkFlushTick(ctx.channel());
     }
 
@@ -195,7 +193,6 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         produceFrameSets(ctx);
         updateBurstTokens(1);
         updateBackPressure(ctx);
-        Constants.packetLossCheck(pendingFrameSets.size(), "resend queue");
         ctx.flush();
     }
 
