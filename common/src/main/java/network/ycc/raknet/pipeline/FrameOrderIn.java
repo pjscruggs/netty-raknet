@@ -88,13 +88,7 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
      */
     @Override
     protected void decode(final ChannelHandlerContext ctx, final Frame frame, final List<Object> list) {
-        final OrderedChannelPacketQueue[] lanes = this.channels;
-        final int channel = frame.getOrderChannel();
-        if (channel < 0 || channel >= lanes.length) {
-            ctx.close();
-            throw new CorruptedFrameException("Invalid RakNet ordering channel: " + channel);
-        }
-        final OrderedChannelPacketQueue lane = lanes[channel];
+        final OrderedChannelPacketQueue lane = requireLane(ctx, frame.getOrderChannel());
         if (frame.getReliability().isSequenced) {
             frame.touch("Sequenced");
             lane.decodeSequenced(frame, list);
@@ -108,6 +102,23 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
         if (frame.getReliability().isOrdered) {
             checkReceiveBudget(ctx);
         }
+    }
+
+    /**
+     * Resolves a wire-supplied lane only inside its valid range, before any queue state is accessed.
+     * Invalid frames close the connection and remain owned by the enclosing decoder's cleanup.
+     *
+     * @param ctx connection closed on an unsupported lane
+     * @param channel untrusted ordering lane from the frame header
+     * @return existing queue for a supported ordering lane
+     * @throws CorruptedFrameException if the lane falls outside this connection's queue array
+     */
+    private OrderedChannelPacketQueue requireLane(final ChannelHandlerContext ctx, final int channel) {
+        if (channel >= 0 && channel < channels.length) {
+            return channels[channel];
+        }
+        ctx.close();
+        throw new CorruptedFrameException("Invalid RakNet ordering channel: " + channel);
     }
 
     /**
