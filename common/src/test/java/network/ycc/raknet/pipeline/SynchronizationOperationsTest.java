@@ -64,8 +64,8 @@ class SynchronizationOperationsTest {
         final Frame future = frame(channel);
         final FrameOrderIn.OrderedChannelPacketQueue lane = ordering.channels[0];
         final FrameData oldData = old.retainedFrameData();
-        lane.queue.put(4, oldData);
-        lane.queue.put(9, future.retainedFrameData());
+        lane.enqueue(4, oldData);
+        lane.enqueue(9, future.retainedFrameData());
         try {
             ordering.skipOrderedThrough(0, 5);
             assertEquals(5, lane.lastOrderIndex);

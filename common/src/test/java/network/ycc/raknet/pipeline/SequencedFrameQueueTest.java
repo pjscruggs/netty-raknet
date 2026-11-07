@@ -50,8 +50,8 @@ class SequencedFrameQueueTest {
         final List<Object> delivered = new ArrayList<>();
         final FrameData obsolete = payload();
         final FrameData pending = payload();
-        queue.queue.put(skipped, obsolete);
-        queue.queue.put(future, pending);
+        queue.enqueue(skipped, obsolete);
+        queue.enqueue(future, pending);
         final Frame frame = sequencedFrame(arriving);
         try {
             queue.decodeSequenced(frame, delivered);
