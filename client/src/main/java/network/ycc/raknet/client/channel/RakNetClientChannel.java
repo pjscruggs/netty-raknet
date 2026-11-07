@@ -10,6 +10,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
@@ -19,6 +20,7 @@ import io.netty.util.concurrent.PromiseCombiner;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.function.Supplier;
+import java.util.List;
 
 /**
  * Runs one client RakNet connection on its UDP socket's event loop.
@@ -29,6 +31,31 @@ public class RakNetClientChannel extends DatagramChannelProxy {
      * Handshake result shared by the initializer, activity checks and the caller's connect operation.
      */
     protected final ChannelPromise connectPromise;
+
+    /** Optional offline-probe race, configured before registration and owned by the IO event loop. */
+    private ClientAddressRace addressRace;
+
+    /**
+     * Enables bounded multi-address negotiation without creating multiple application connections.
+     * The application must resolve and authorize every endpoint before calling this method.
+     * @param addresses ordered resolved candidates, including the endpoint passed to connect first
+     * @throws IllegalStateException if registration has already begun
+     */
+    public void setRemoteAddresses(final List<InetSocketAddress> addresses) {
+        if (isRegistered()) {
+            throw new IllegalStateException("Configure destinations before registration");
+        }
+        addressRace = addresses.size() > 1 ? new ClientAddressRace(addresses) : null;
+    }
+
+    /**
+     * Exposes only the selected peer when a multi-address attempt uses an unconnected UDP socket.
+     * @return connected or negotiated peer, or null while offline probes are still racing
+     */
+    @Override
+    public SocketAddress remoteAddress() {
+        return addressRace == null ? super.remoteAddress() : addressRace.selected();
+    }
 
     /**
      * Creates an unconnected client using a NIO datagram socket and the default RakNet pipeline.
@@ -132,7 +159,9 @@ public class RakNetClientChannel extends DatagramChannelProxy {
                 if (listener.isActive()) {
                     throw new IllegalStateException("Channel connection already started");
                 }
-                final ChannelFuture listenerConnect = listener.connect(remoteAddress, localAddress);
+                final ChannelFuture listenerConnect = addressRace == null
+                        ? listener.connect(remoteAddress, localAddress)
+                        : listener.bind(localAddress == null ? new InetSocketAddress(0) : localAddress);
                 listenerConnect.addListener(udpConnectResult -> {
                     if (udpConnectResult.isSuccess()) {
                         //start connection process
@@ -160,7 +189,35 @@ public class RakNetClientChannel extends DatagramChannelProxy {
          */
         @Override
         public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise promise) {
-            listener.write(msg, wrapPromise(promise));
+            if (addressRace != null && msg instanceof ByteBuf) {
+                final DatagramPacket datagram = new DatagramPacket((ByteBuf) msg,
+                        addressRace.destination(System.nanoTime()));
+                if (addressRace.selected() == null) {
+                    writeProbe(datagram, promise);
+                } else {
+                    listener.write(datagram, wrapPromise(promise));
+                }
+            } else {
+                listener.write(msg, wrapPromise(promise));
+            }
+        }
+
+        /**
+         * Allows another candidate to negotiate when a probe fails locally, such as on an IPv4-only host.
+         * Only offline probes use this path; established session write failures retain normal propagation.
+         * @param datagram owned offline probe transferred to the socket
+         * @param promise completed after this attempt is accounted for by the overall handshake
+         */
+        private void writeProbe(final DatagramPacket datagram, final ChannelPromise promise) {
+            final InetSocketAddress destination = datagram.recipient();
+            listener.write(datagram).addListener(result -> {
+                if (!result.isSuccess() && addressRace.failed(destination)) {
+                    connectPromise.tryFailure(result.cause());
+                }
+                // A failed candidate is not a failed logical connection: the shared handshake
+                // deadline and remaining candidates determine the caller-visible result.
+                promise.trySuccess();
+            });
         }
 
         /**
@@ -176,7 +233,7 @@ public class RakNetClientChannel extends DatagramChannelProxy {
             if (msg instanceof DatagramPacket) {
                 try {
                     final DatagramPacket datagram = (DatagramPacket) msg;
-                    if (datagram.sender() == null || datagram.sender().equals(remoteAddress())) {
+                    if (acceptDatagram(datagram)) {
                         ctx.fireChannelRead(datagram.content().retain());
                     }
                 } finally {
@@ -185,6 +242,17 @@ public class RakNetClientChannel extends DatagramChannelProxy {
             } else {
                 ctx.fireChannelRead(msg);
             }
+        }
+
+        /**
+         * Applies handshake selection before the established-peer filter for multi-address clients.
+         * @param datagram borrowed envelope being considered for the transport decoder
+         * @return whether its payload may enter this connection's pipeline
+         */
+        private boolean acceptDatagram(final DatagramPacket datagram) {
+            return addressRace == null
+                    ? datagram.sender() == null || datagram.sender().equals(remoteAddress())
+                    : addressRace.accept(datagram, config);
         }
 
         /**
