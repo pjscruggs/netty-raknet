@@ -102,16 +102,37 @@ public class Reliability extends SimplePacket implements Packet {
     }
 
     /**
-     * Exposes the current range array directly for reliability processing.
-     * Callers must not mutate it while another component is consuming this packet.
+     * Copies the range table so replacing an element cannot change an acknowledgement already in use.
+     * Range objects themselves have immutable endpoints and need no deep copy.
      *
-     * @return live range array, or null before a decoder-target instance is populated
+     * @return independent range array, or null before a decoder-target instance is populated
      */
     public REntry[] getEntries() {
-        return entries;
+        return entries == null ? null : entries.clone();
     }
 
-    //TODO: iterator
+    /**
+     * Returns the decoded range count without allocating a defensive copy on the receive path.
+     *
+     * @return number of ranges, or zero before decoding
+     */
+    public int getEntryCount() {
+        return entries == null ? 0 : entries.length;
+    }
+
+    /**
+     * Reads an immutable range directly without exposing the mutable table containing it.
+     *
+     * @param index zero-based position below {@link #getEntryCount()}
+     * @return range whose endpoints cannot be changed by the caller
+     * @throws IndexOutOfBoundsException if the position is outside the decoded range table
+     */
+    public REntry getEntry(final int index) {
+        if (index < 0 || index >= getEntryCount()) {
+            throw new IndexOutOfBoundsException("Acknowledgement range index: " + index);
+        }
+        return entries[index];
+    }
 
     /** Stores one inclusive singleton or wrapping range of datagram sequence numbers. */
     public static class REntry {

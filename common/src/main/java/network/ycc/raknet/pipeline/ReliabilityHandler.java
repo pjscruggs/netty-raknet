@@ -236,7 +236,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
      */
     protected void readAck(final Reliability.ACK ack) {
         int ackdBytes = 0;
-        for (final int id : AcknowledgementRanges.select(ack.getEntries(), pendingFrameSets.keySet())) {
+        for (final int id : AcknowledgementRanges.select(ack, pendingFrameSets.keySet())) {
             final FrameSet frameSet = pendingFrameSets.remove(id);
             if (frameSet != null) {
                 ackdBytes += frameSet.getRoughSize();
@@ -263,7 +263,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
 
         int bytesNACKd = 0;
-        for (final int id : AcknowledgementRanges.select(nack.getEntries(), pendingFrameSets.keySet())) {
+        for (final int id : AcknowledgementRanges.select(nack, pendingFrameSets.keySet())) {
             final FrameSet frameSet = pendingFrameSets.remove(id);
             if (frameSet != null) {
                 bytesNACKd += frameSet.getRoughSize();

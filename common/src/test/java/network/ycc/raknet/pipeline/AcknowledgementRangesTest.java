@@ -2,6 +2,8 @@ package network.ycc.raknet.pipeline;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.Arrays;
 import java.util.Random;
 import network.ycc.raknet.packet.Reliability;
@@ -20,7 +22,7 @@ class AcknowledgementRangesTest {
         Arrays.fill(entries, new Reliability.REntry(0, UINT.B3.MAX_VALUE));
         final int[] ids = {0, 7, 8000, UINT.B3.MAX_VALUE};
         final IntLinkedOpenHashSet pending = new IntLinkedOpenHashSet(ids);
-        assertEquals(new IntArrayList(ids), AcknowledgementRanges.select(entries, pending));
+        assertEquals(new IntArrayList(ids), select(entries, pending));
         assertEquals(4, pending.size());
     }
 
@@ -35,19 +37,19 @@ class AcknowledgementRangesTest {
                 new int[] {6, 7, 0, 2, 3, 5, UINT.B3.MAX_VALUE - 1, UINT.B3.MAX_VALUE, 8});
         assertEquals(new IntArrayList(new int[] {7, 0, 2, 3, 5,
                 UINT.B3.MAX_VALUE - 1, UINT.B3.MAX_VALUE}),
-                AcknowledgementRanges.select(entries, pending));
+                select(entries, pending));
     }
 
     /** The single-ID fast path and empty inputs preserve the same selection contract as intervals. */
     @Test
     void singleAndEmptyAcknowledgementsSelectOnlyOutstandingIds() {
         final IntLinkedOpenHashSet pending = new IntLinkedOpenHashSet(new int[] {7});
-        assertEquals(new IntArrayList(new int[] {7}), AcknowledgementRanges.select(
+        assertEquals(new IntArrayList(new int[] {7}), select(
                 new Reliability.REntry[] {new Reliability.REntry(7)}, pending));
-        assertTrue(AcknowledgementRanges.select(
+        assertTrue(select(
                 new Reliability.REntry[] {new Reliability.REntry(8)}, pending).isEmpty());
-        assertTrue(AcknowledgementRanges.select(new Reliability.REntry[0], pending).isEmpty());
-        assertTrue(AcknowledgementRanges.select(new Reliability.REntry[] {
+        assertTrue(select(new Reliability.REntry[0], pending).isEmpty());
+        assertTrue(select(new Reliability.REntry[] {
                 new Reliability.REntry(0, UINT.B3.MAX_VALUE)}, new IntLinkedOpenHashSet()).isEmpty());
     }
 
@@ -66,7 +68,32 @@ class AcknowledgementRangesTest {
                 pending.add(end);
                 pending.add(random.nextInt(UINT.B3.MAX_VALUE + 1));
             }
-            assertEquals(expected(entries, pending), AcknowledgementRanges.select(entries, pending));
+            assertEquals(expected(entries, pending), select(entries, pending));
+        }
+    }
+
+    /**
+     * Decodes fixture ranges through the public packet API before exercising the actual receive path.
+     *
+     * @param entries independent expected wire ranges
+     * @param pending outstanding fixture IDs
+     * @return actual pending IDs selected from the decoded acknowledgement
+     */
+    private static IntArrayList select(final Reliability.REntry[] entries,
+            final IntLinkedOpenHashSet pending) {
+        final ByteBuf wire = Unpooled.buffer();
+        try {
+            wire.writeShort(entries.length);
+            for (final Reliability.REntry entry : entries) {
+                wire.writeBoolean(false);
+                wire.writeMediumLE(entry.idStart);
+                wire.writeMediumLE(entry.idFinish);
+            }
+            final Reliability.ACK acknowledgement = new Reliability.ACK();
+            acknowledgement.decode(wire);
+            return AcknowledgementRanges.select(acknowledgement, pending);
+        } finally {
+            wire.release();
         }
     }
 

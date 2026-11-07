@@ -18,10 +18,11 @@ final class AcknowledgementRanges {
      *
      * @param entries inclusive sequence ranges decoded from one acknowledgement
      */
-    private AcknowledgementRanges(final Reliability.REntry[] entries) {
-        intervals = new long[Math.multiplyExact(entries.length, 2)];
+    private AcknowledgementRanges(final Reliability entries) {
+        intervals = new long[Math.multiplyExact(entries.getEntryCount(), 2)];
         int count = 0;
-        for (final Reliability.REntry entry : entries) {
+        for (int index = 0; index < entries.getEntryCount(); index++) {
+            final Reliability.REntry entry = entries.getEntry(index);
             final int start = entry.idStart & UINT.B3.MAX_VALUE;
             final int end = entry.idFinish & UINT.B3.MAX_VALUE;
             if (start <= end) {
@@ -43,13 +44,13 @@ final class AcknowledgementRanges {
      * @param pending sequence numbers that still own an outstanding frame set
      * @return matching pending numbers, each at most once
      */
-    static IntArrayList select(final Reliability.REntry[] entries, final IntSet pending) {
+    static IntArrayList select(final Reliability entries, final IntSet pending) {
         final IntArrayList selected = new IntArrayList();
-        if (pending.isEmpty() || entries.length == 0) {
+        if (pending.isEmpty() || entries.getEntryCount() == 0) {
             return selected;
         }
-        if (entries.length == 1 && entries[0].idStart == entries[0].idFinish) {
-            final int sequence = entries[0].idStart & UINT.B3.MAX_VALUE;
+        if (entries.getEntryCount() == 1 && entries.getEntry(0).idStart == entries.getEntry(0).idFinish) {
+            final int sequence = entries.getEntry(0).idStart & UINT.B3.MAX_VALUE;
             if (pending.contains(sequence)) {
                 selected.add(sequence);
             }
