@@ -104,9 +104,12 @@ public final class FrameData extends AbstractReferenceCounted implements FramedP
      * @param length positive number of readable bytes to retain
      * @param fragment whether the slice is a fragment awaiting reassembly
      * @return payload wrapper with one caller-owned reference
+     * @throws IllegalArgumentException if the payload has no packet or fragment bytes
      */
     public static FrameData read(final ByteBuf buf, final int length, final boolean fragment) {
-        assert length > 0;
+        if (length <= 0) {
+            throw new IllegalArgumentException("Frame payload length must be positive");
+        }
         final FrameData packet = createRaw();
         try {
             packet.data = buf.readRetainedSlice(length);
