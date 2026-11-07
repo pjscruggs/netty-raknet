@@ -99,6 +99,8 @@ public class DefaultCodec implements RakNet.Codec {
     protected final Int2ObjectOpenHashMap<BiConsumer<? extends Packet, ByteBuf>> encoders = new Int2ObjectOpenHashMap<>();
     /** Exact runtime packet-class lookup, returning minus one for unregistered types. */
     protected final Object2IntOpenHashMap<Class<?>> idFromClass = new Object2IntOpenHashMap<>();
+    /** Packet class currently decoded by each wire ID, used to remove stale encoder aliases on replacement. */
+    private final Int2ObjectOpenHashMap<Class<?>> classesById = new Int2ObjectOpenHashMap<>();
     /** Registered IDs whose decoded types can carry framed reliability and ordering metadata. */
     protected final IntOpenHashSet framedPacketIds = new IntOpenHashSet();
 
@@ -107,28 +109,28 @@ public class DefaultCodec implements RakNet.Codec {
      */
     public DefaultCodec() {
         //       ID                         Class                       Decoder                     Encoder
-        register(PING,                      Ping.class,                 Ping::new);
-        register(UNCONNECTED_PING,          UnconnectedPing.class,      UnconnectedPing::new);
-        register(PONG,                      Pong.class,                 Pong::new);
-        register(OPEN_CONNECTION_REQUEST_1, ConnectionRequest1.class,   ConnectionRequest1::new);
-        register(OPEN_CONNECTION_REPLY_1,   ConnectionReply1.class,     ConnectionReply1::new);
-        register(OPEN_CONNECTION_REQUEST_2, ConnectionRequest2.class,   ConnectionRequest2::new);
-        register(OPEN_CONNECTION_REPLY_2,   ConnectionReply2.class,     ConnectionReply2::new);
-        register(CONNECTION_REQUEST,        ConnectionRequest.class,    ConnectionRequest::new);
-        register(SERVER_HANDSHAKE,          ServerHandshake.class,      ServerHandshake::new);
-        register(CONNECTION_FAILED,         ConnectionFailed.class,     ConnectionFailed::new);
-        register(ALREADY_CONNECTED,         AlreadyConnected.class,     AlreadyConnected::new);
-        register(CLIENT_HANDSHAKE,          ClientHandshake.class,      ClientHandshake::new);
-        register(NO_FREE_CONNECTIONS,       NoFreeConnections.class,    NoFreeConnections::new);
-        register(CLIENT_DISCONNECT,         Disconnect.class,           Disconnect::new);
-        register(CONNECTION_BANNED,         ConnectionBanned.class,     ConnectionBanned::new);
-        register(INVALID_VERSION,           InvalidVersion.class,       InvalidVersion::new);
-        register(UNCONNECTED_PONG,          UnconnectedPong.class,      UnconnectedPong::new);
+        registerBuiltin(PING,                      Ping.class,                 Ping::new);
+        registerBuiltin(UNCONNECTED_PING,          UnconnectedPing.class,      UnconnectedPing::new);
+        registerBuiltin(PONG,                      Pong.class,                 Pong::new);
+        registerBuiltin(OPEN_CONNECTION_REQUEST_1, ConnectionRequest1.class,   ConnectionRequest1::new);
+        registerBuiltin(OPEN_CONNECTION_REPLY_1,   ConnectionReply1.class,     ConnectionReply1::new);
+        registerBuiltin(OPEN_CONNECTION_REQUEST_2, ConnectionRequest2.class,   ConnectionRequest2::new);
+        registerBuiltin(OPEN_CONNECTION_REPLY_2,   ConnectionReply2.class,     ConnectionReply2::new);
+        registerBuiltin(CONNECTION_REQUEST,        ConnectionRequest.class,    ConnectionRequest::new);
+        registerBuiltin(SERVER_HANDSHAKE,          ServerHandshake.class,      ServerHandshake::new);
+        registerBuiltin(CONNECTION_FAILED,         ConnectionFailed.class,     ConnectionFailed::new);
+        registerBuiltin(ALREADY_CONNECTED,         AlreadyConnected.class,     AlreadyConnected::new);
+        registerBuiltin(CLIENT_HANDSHAKE,          ClientHandshake.class,      ClientHandshake::new);
+        registerBuiltin(NO_FREE_CONNECTIONS,       NoFreeConnections.class,    NoFreeConnections::new);
+        registerBuiltin(CLIENT_DISCONNECT,         Disconnect.class,           Disconnect::new);
+        registerBuiltin(CONNECTION_BANNED,         ConnectionBanned.class,     ConnectionBanned::new);
+        registerBuiltin(INVALID_VERSION,           InvalidVersion.class,       InvalidVersion::new);
+        registerBuiltin(UNCONNECTED_PONG,          UnconnectedPong.class,      UnconnectedPong::new);
         for (int i = FRAME_DATA_START; i <= FRAME_DATA_END; i++) {
-            register(i, FrameSet.class, FrameSet::read, FrameSet::write);
+            installRegistration(i, FrameSet.class, FrameSet::read, FrameSet::write);
         }
-        register(NACK,                      Reliability.NACK.class,     Reliability.NACK::new);
-        register(ACK,                       Reliability.ACK.class,      Reliability.ACK::new);
+        registerBuiltin(NACK,                      Reliability.NACK.class,     Reliability.NACK::new);
+        registerBuiltin(ACK,                       Reliability.ACK.class,      Reliability.ACK::new);
 
         idFromClass.defaultReturnValue(-1);
     }
@@ -252,6 +254,20 @@ public class DefaultCodec implements RakNet.Codec {
         return idFromClass.getInt(type);
     }
 
+    /**
+     * Installs a built-in packet without dispatching to subclass hooks before subclass initialization.
+     * Subclasses may customize registrations after their own fields have been initialized.
+     *
+     * @param <T> built-in simple packet type
+     * @param id packet's one-byte wire identifier
+     * @param type exact packet class used for encoding
+     * @param constructor factory invoked only when decoding a packet
+     */
+    private <T extends SimplePacket> void registerBuiltin(final int id, final Class<T> type,
+            final Supplier<T> constructor) {
+        installRegistration(id, type, simpleDecoder(constructor), simpleEncoder(id));
+    }
+
     ///// REGISTRY /////
 
     /**
@@ -278,11 +294,32 @@ public class DefaultCodec implements RakNet.Codec {
      */
     protected <T extends Packet> void register(final int id, final Class<? extends Packet> clz,
             final Function<ByteBuf, T> decoder, final BiConsumer<T, ByteBuf> encoder) {
+        installRegistration(id, clz, decoder, encoder);
+    }
+
+    /**
+     * Replaces a wire-ID registration and removes aliases that would otherwise select the replacement's wrong encoder.
+     * Multiple IDs may still decode one class, as frame sets require, while encoding uses its latest registration.
+     *
+     * @param <T> packet type accepted by the parser and writer
+     * @param id wire identifier whose registration is replaced
+     * @param clz exact packet class associated with the identifier
+     * @param decoder parser consuming the wire identifier and body
+     * @param encoder writer emitting the wire identifier and body
+     */
+    private <T extends Packet> void installRegistration(final int id, final Class<? extends Packet> clz,
+            final Function<ByteBuf, T> decoder, final BiConsumer<T, ByteBuf> encoder) {
+        final Class<?> previous = classesById.put(id, clz);
+        if (previous != null && idFromClass.getInt(previous) == id) {
+            idFromClass.removeInt(previous);
+        }
         idFromClass.put(clz, id);
         decoders.put(id, decoder);
         encoders.put(id, encoder);
         if (FramedPacket.class.isAssignableFrom(clz)) {
             framedPacketIds.add(id);
+        } else {
+            framedPacketIds.remove(id);
         }
     }
 
@@ -294,6 +331,17 @@ public class DefaultCodec implements RakNet.Codec {
      * @return body-decoder adapter that leaves buffer ownership with its caller
      */
     protected <T extends SimplePacket> Function<ByteBuf, T> decodeSimple(final Supplier<T> cons) {
+        return simpleDecoder(cons);
+    }
+
+    /**
+     * Creates a simple packet reader without invoking overridable methods during registry construction.
+     *
+     * @param <T> packet type produced by the supplied factory
+     * @param cons factory used once for each decoded body
+     * @return decoder that borrows its input buffer without retaining or releasing it
+     */
+    private static <T extends SimplePacket> Function<ByteBuf, T> simpleDecoder(final Supplier<T> cons) {
         return buf -> {
             final T inst = cons.get();
             buf.skipBytes(1);
@@ -310,6 +358,17 @@ public class DefaultCodec implements RakNet.Codec {
      * @return encoder adapter that leaves packet and buffer ownership with its caller
      */
     protected <T extends SimplePacket> BiConsumer<T, ByteBuf> encodeSimple(final int id) {
+        return simpleEncoder(id);
+    }
+
+    /**
+     * Creates a simple packet writer without invoking overridable methods during registry construction.
+     *
+     * @param <T> packet type whose body encoder receives the destination buffer
+     * @param id one-byte identifier written before the packet body
+     * @return writer preserving packet and destination ownership
+     */
+    private static <T extends SimplePacket> BiConsumer<T, ByteBuf> simpleEncoder(final int id) {
         return (packet, buf) -> {
             buf.writeByte(id);
             packet.encode(buf);

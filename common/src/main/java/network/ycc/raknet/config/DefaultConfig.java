@@ -54,7 +54,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     private volatile RakNet.Magic magic = DEFAULT_MAGIC;
     /** Packet registry used for encoding and decoding this connection's transport messages. */
     private volatile RakNet.Codec codec = DefaultCodec.INSTANCE;
-    /** Live array of transport versions accepted by the server, initially nine and ten. */
+    /** Privately owned snapshot of transport versions accepted by the server, initially nine and ten. */
     private volatile int[] protocolVersions = {9, 10};
     /** Maximum number of child connections admitted by a server channel. */
     private volatile int maxConnections = 2048;
@@ -74,7 +74,7 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
      */
     public DefaultConfig(final Channel channel) {
         super(channel);
-        setRTTNanos(TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS));
+        rttStats.addValue(TimeUnit.NANOSECONDS.convert(100, TimeUnit.MILLISECONDS));
     }
 
     /**
@@ -424,24 +424,23 @@ public class DefaultConfig extends DefaultChannelConfig implements RakNet.Config
     }
 
     /**
-     * Returns the live accepted-version array without copying it.
-     * External mutation changes subsequent membership checks and must not race with channel use.
+     * Copies the accepted-version snapshot so callers cannot mutate admission policy through a returned array.
      *
-     * @return shared array of accepted RakNet transport versions
+     * @return independent array of accepted RakNet transport versions
      */
     @Override
     public int[] getProtocolVersions() {
-        return protocolVersions;
+        return protocolVersions.clone();
     }
 
     /**
-     * Replaces the accepted-version array by reference without copying or validating its entries.
+     * Copies the accepted-version list before publishing it, preventing later caller mutation from changing admission policy.
      *
-     * @param protocolVersions non-null version array that callers must not mutate concurrently
+     * @param protocolVersions non-null version array copied for future membership checks
      */
     @Override
     public void setprotocolVersions(final int[] protocolVersions) {
-        this.protocolVersions = protocolVersions;
+        this.protocolVersions = protocolVersions.clone();
     }
 
     /**
