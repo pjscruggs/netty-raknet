@@ -30,6 +30,28 @@ class FrameOrderValidationTest {
         }
     }
 
+    /** Invalid synchronization lanes and cursors cannot advance any queue's delivery position. */
+    @Test
+    void invalidSynchronizationArgumentsLeaveDeliveryUnchanged() {
+        final FrameOrderIn ordering = new FrameOrderIn();
+        final EmbeddedChannel pipeline = new EmbeddedChannel(ordering);
+        try {
+            for (final int lane : new int[] {-1, 8, 255}) {
+                assertThrows(IllegalArgumentException.class, () -> ordering.skipOrderedThrough(lane, 0));
+            }
+            for (final int cursor : new int[] {-1, 1 << 24}) {
+                assertThrows(IllegalArgumentException.class, () -> ordering.skipOrderedThrough(0, cursor));
+            }
+            assertTrue(pipeline.writeInbound(frame(Reliability.RELIABLE_ORDERED, 0)));
+            final FrameData accepted = pipeline.readInbound();
+            assertNotNull(accepted);
+            accepted.release();
+            assertTrue(pipeline.isOpen());
+        } finally {
+            pipeline.finishAndReleaseAll();
+        }
+    }
+
     /** All eight channels deliver their first packet and release the enclosing frame. */
     @Test
     void validOrderedChannelsStillDeliver() {

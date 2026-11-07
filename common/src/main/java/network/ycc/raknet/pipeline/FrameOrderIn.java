@@ -44,11 +44,11 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
      *
      * @param channel lane to advance, from zero through seven
      * @param lastOrderIndex final superseded twenty-four-bit position
-     * @throws IllegalArgumentException if the cursor is not a twenty-four-bit value
+     * @throws IllegalArgumentException if the lane is unsupported or the cursor is not a twenty-four-bit value
      */
     public final void skipOrderedThrough(final int channel, final int lastOrderIndex) {
-        if (!UINT.fits(lastOrderIndex, 24)) {
-            throw new IllegalArgumentException("Invalid ordering cursor");
+        if (channel < 0 || channel >= channels.length || !UINT.fits(lastOrderIndex, 24)) {
+            throw new IllegalArgumentException("Invalid ordering lane or cursor");
         }
         channels[channel].skipTo(UINT.B3.plus(lastOrderIndex, 1));
     }
@@ -88,17 +88,19 @@ public class FrameOrderIn extends MessageToMessageDecoder<Frame> {
      */
     @Override
     protected void decode(final ChannelHandlerContext ctx, final Frame frame, final List<Object> list) {
+        final OrderedChannelPacketQueue[] lanes = this.channels;
         final int channel = frame.getOrderChannel();
-        if (channel < 0 || channel >= channels.length) {
+        if (channel < 0 || channel >= lanes.length) {
             ctx.close();
             throw new CorruptedFrameException("Invalid RakNet ordering channel: " + channel);
         }
+        final OrderedChannelPacketQueue lane = lanes[channel];
         if (frame.getReliability().isSequenced) {
             frame.touch("Sequenced");
-            channels[channel].decodeSequenced(frame, list);
+            lane.decodeSequenced(frame, list);
         } else if (frame.getReliability().isOrdered) {
             frame.touch("Ordered");
-            channels[channel].decodeOrdered(frame, list);
+            lane.decodeOrdered(frame, list);
         } else {
             frame.touch("No order");
             list.add(frame.retainedFrameData());
