@@ -13,6 +13,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.netty.channel.ChannelPromise;
+import network.ycc.raknet.frame.Frame;
+import network.ycc.raknet.frame.FrameData;
+import java.nio.channels.ClosedChannelException;
 
 /** Exercises actual ACK completion and NACK recall with sparse outstanding frame sets. */
 class ReliabilityAcknowledgementTest {
@@ -52,6 +56,97 @@ class ReliabilityAcknowledgementTest {
             assertEquals(1, handler.lastReceivedSeqId);
         } finally {
             channel.finishAndReleaseAll();
+        }
+    }
+
+    /** A near-half-space jump retains only the recent retry window without enumerating the gap. */
+    @Test
+    void enabledNacksBoundLargeGaps() {
+        final EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        final TestHandler handler = new TestHandler(channel);
+        handler.config.setNACKEnabled(true);
+        try {
+            receive(handler, channel, UINT.B3.HALF_MAX);
+            assertEquals(ReliabilityHandler.MAX_NACK_WINDOW, handler.nackSet.size());
+            assertTrue(handler.nackSet.contains(UINT.B3.HALF_MAX - 1));
+            assertTrue(handler.nackSet.contains(UINT.B3.HALF_MAX - ReliabilityHandler.MAX_NACK_WINDOW));
+            assertFalse(handler.nackSet.contains(1));
+            assertEquals(UINT.B3.HALF_MAX, handler.lastReceivedSeqId);
+            assertTrue(handler.ackSet.contains(UINT.B3.HALF_MAX));
+            final int next = UINT.B3.plus(UINT.B3.HALF_MAX, UINT.B3.HALF_MAX);
+            receive(handler, channel, next);
+            assertEquals(ReliabilityHandler.MAX_NACK_WINDOW, handler.nackSet.size());
+            assertTrue(handler.nackSet.contains(UINT.B3.plus(next, -1)));
+            assertFalse(handler.nackSet.contains(UINT.B3.HALF_MAX - 1));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /** Advancing the window prunes old misses without recreating a late packet already received. */
+    @Test
+    void boundedNacksPreserveLateArrivalsAcrossWindowAdvance() {
+        final EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        final TestHandler handler = new TestHandler(channel);
+        handler.config.setNACKEnabled(true);
+        try {
+            receive(handler, channel, 9000);
+            receive(handler, channel, 8500);
+            receive(handler, channel, 10000);
+            assertEquals(ReliabilityHandler.MAX_NACK_WINDOW - 2, handler.nackSet.size());
+            assertFalse(handler.nackSet.contains(1807));
+            assertTrue(handler.nackSet.contains(1808));
+            assertFalse(handler.nackSet.contains(8500));
+            assertFalse(handler.nackSet.contains(9000));
+            assertTrue(handler.nackSet.contains(9999));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /** Removal fails both unsent and transmitted writes and releases their retained storage. */
+    @Test
+    void removalCompletesQueuedAndOutstandingWrites() {
+        final EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
+        final TestHandler handler = new TestHandler(channel);
+        final ChannelPromise queuedPromise = channel.newPromise();
+        final ChannelPromise sentPromise = channel.newPromise();
+        final Frame queued = promisedFrame(queuedPromise);
+        final Frame sent = promisedFrame(sentPromise);
+        handler.frameQueue.add(queued);
+        final FrameSet outstanding = handler.pending(7);
+        outstanding.addPacket(sent);
+        try {
+            handler.handlerRemoved(channel.pipeline().firstContext());
+            assertTrue(queuedPromise.cause() instanceof ClosedChannelException);
+            assertTrue(sentPromise.cause() instanceof ClosedChannelException);
+            assertEquals(0, queued.refCnt());
+            assertEquals(0, sent.refCnt());
+            assertEquals(0, outstanding.refCnt());
+            assertTrue(handler.frameQueue.isEmpty());
+            assertTrue(handler.pendingFrameSets.isEmpty());
+        } finally {
+            handler.clearQueue(null);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /**
+     * Creates a retained ordered payload with a caller-visible completion promise.
+     *
+     * @param promise delivery result to attach to the returned frame
+     * @return caller-owned frame transferred into a queue by its test
+     */
+    private static Frame promisedFrame(final ChannelPromise promise) {
+        final ByteBuf bytes = Unpooled.buffer().writeByte(42);
+        final FrameData data = FrameData.create(bytes.alloc(), 0xfe, bytes);
+        try {
+            final Frame frame = Frame.createOrdered(data, 0, 0);
+            frame.setPromise(promise);
+            return frame;
+        } finally {
+            data.release();
+            bytes.release();
         }
     }
 

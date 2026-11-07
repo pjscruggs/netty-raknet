@@ -1,6 +1,7 @@
 package network.ycc.raknet.pipeline;
 
 import java.util.Queue;
+import java.nio.channels.ClosedChannelException;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -30,6 +31,9 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
 
     /** Pipeline name for frame-set acknowledgements, retransmission and outgoing queue ownership. */
     public static final String NAME = "rn-reliability";
+
+    /** Maximum recent sequence positions tracked for advisory negative acknowledgements. */
+    static final int MAX_NACK_WINDOW = 8192;
 
     /** Missing received datagram counters awaiting a negative acknowledgement when that feature is enabled. */
     protected final IntSortedSet nackSet = new IntRBTreeSet(UINT.B3.COMPARATOR);
@@ -134,13 +138,15 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
 
     /**
      * Releases all queued and outstanding frame references when this transport stage is detached.
-     * This cleanup path supplies no failure cause and therefore does not fail the associated write promises.
+     * Pending writers receive a closed-channel failure because detached frames can no longer be acknowledged.
      *
      * @param ctx context being removed from the pipeline
      */
     @Override
     public void handlerRemoved(final ChannelHandlerContext ctx) {
-        clearQueue(null);
+        clearQueue(new ClosedChannelException());
+        ackSet.clear();
+        nackSet.clear();
     }
 
     /**
@@ -273,12 +279,21 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Records missing datagrams only for transports that have enabled negative acknowledgements.
+     * Tracks only the newest bounded window of missing datagrams, including across counter wrap.
+     * Negative acknowledgements accelerate retries but are not required for delivery. Older missing
+     * datagrams still retry when the sender's acknowledgement timer expires. Bounding both the scan
+     * and retained set prevents a peer-controlled gap from allocating millions of tree nodes.
      *
      * @param received newer sequence number ending the exclusive missing range
      */
     private void queueMissingSequences(final int received) {
-        for (int missing = UINT.B3.plus(lastReceivedSeqId, 1); missing != received;
+        nackSet.removeIf(sequence -> {
+            final int distance = UINT.B3.minusWrap(received, sequence);
+            return distance <= 0 || distance > MAX_NACK_WINDOW;
+        });
+        final int missingCount = Math.min(
+                UINT.B3.minusWrap(received, lastReceivedSeqId) - 1, MAX_NACK_WINDOW);
+        for (int missing = UINT.B3.plus(received, -missingCount); missing != received;
                 missing = UINT.B3.plus(missing, 1)) {
             nackSet.add(missing);
         }
