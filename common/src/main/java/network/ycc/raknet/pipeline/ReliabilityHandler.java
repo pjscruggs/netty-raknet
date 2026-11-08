@@ -35,6 +35,11 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     /** Maximum recent sequence positions tracked for advisory negative acknowledgements. */
     static final int MAX_NACK_WINDOW = 8192;
 
+    /** Maximum adaptive retry wait, below the normal connection liveness timeout. */
+    private static final long MAX_RETRY_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+    /** Retry grace learned from ACK arrival independently of ping responses. */
+    private long acknowledgementTimeout;
+
     /** Missing received datagram counters awaiting a negative acknowledgement when that feature is enabled. */
     protected final IntSortedSet nackSet = new IntRBTreeSet(UINT.B3.COMPARATOR);
     /** Received datagram counters awaiting acknowledgement, ordered by circular counter distance. */
@@ -313,6 +318,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         for (final int id : AcknowledgementRanges.select(ack, pendingFrameSets.keySet())) {
             final FrameSet frameSet = pendingFrameSets.remove(id);
             if (frameSet != null) {
+                acknowledgeTiming(frameSet);
                 ackdBytes += frameSet.getRoughSize();
                 adjustResendGauge(1);
                 try {
@@ -441,23 +447,50 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Recalls the oldest outstanding frame sets after the RTT estimate, two deviations and retry delay expire.
+     * Recalls the oldest outstanding frame sets after the adaptive acknowledgement deadline.
      * The insertion-ordered map permits the scan to stop at the first frame set that is still within its deadline.
      */
     protected void recallExpiredFrameSets() {
         final ObjectIterator<FrameSet> packetItr = pendingFrameSets.values().iterator();
         //2 sd from mean RTT is about 97% coverage
-        final long deadline = System.nanoTime() -
-                (config.getRTTNanos() + 2 * config.getRTTStdDevNanos() + config.getRetryDelayNanos());
+        final long timeout = retryTimeout();
+        final long deadline = System.nanoTime() - timeout;
+        boolean expired = false;
         while (packetItr.hasNext()) {
             final FrameSet frameSet = packetItr.next();
             if (frameSet.getSentTime() < deadline) {
                 packetItr.remove();
+                expired = true;
                 recallFrameSet(frameSet);
             } else {
                 break; // FrameSets are ordered by send time: LinkedMap
             }
         }
+        if (expired) {
+            acknowledgementTimeout = Math.min(MAX_RETRY_NANOS, Math.min(MAX_RETRY_NANOS, timeout) * 2);
+        }
+    }
+
+    /**
+     * Combines the ping estimate with bounded acknowledgement-driven backoff.
+     *
+     * @return positive retry wait in nanoseconds
+     */
+    private long retryTimeout() {
+        long ping = config.getRTTNanos() + 2 * config.getRTTStdDevNanos() + config.getRetryDelayNanos();
+        return Math.max(1, Math.max(ping, acknowledgementTimeout));
+    }
+
+    /**
+     * Learns actual receipt delay while allowing prompt ACKs to reduce earlier backoff.
+     *
+     * @param frameSet outstanding datagram covered by this acknowledgement
+     */
+    private void acknowledgeTiming(final FrameSet frameSet) {
+        long elapsed = Math.max(1, System.nanoTime() - frameSet.getSentTime());
+        long observed = Math.min(MAX_RETRY_NANOS, elapsed) * 2;
+        acknowledgementTimeout = Math.min(MAX_RETRY_NANOS,
+                Math.max(observed, acknowledgementTimeout - acknowledgementTimeout / 8));
     }
 
     /**

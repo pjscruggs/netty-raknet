@@ -189,6 +189,65 @@ class ReliabilityAcknowledgementTest {
         }
     }
 
+    /**
+     * Repeated expiry leaves enough time for delayed ACKs to release the send window.
+     *
+     * @throws ReflectiveOperationException if the timestamp fixture contract changes
+     */
+    @Test
+    void delayedAcknowledgementsSurviveRetryBackoff() throws ReflectiveOperationException {
+        final EmbeddedChannel channel = new EmbeddedChannel();
+        final TestHandler handler = new TestHandler(channel);
+        handler.config.setRTTNanos(1);
+        handler.config.setRetryDelayNanos(java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(50));
+        try {
+            for (int attempt = 0; attempt < 7; attempt++) {
+                final FrameSet frame = handler.pending(attempt);
+                age(frame, 10000);
+                handler.recallExpiredFrameSets();
+                assertTrue(handler.pendingFrameSets.isEmpty());
+            }
+            final FrameSet delayed = handler.pending(20);
+            age(delayed, 3000);
+            handler.recallExpiredFrameSets();
+            assertTrue(handler.pendingFrameSets.containsKey(20));
+            handler.readAck(new Reliability.ACK(20));
+            assertEquals(0, delayed.refCnt());
+            final FrameSet next = handler.pending(21);
+            age(next, 3000);
+            handler.recallExpiredFrameSets();
+            assertTrue(handler.pendingFrameSets.containsKey(21));
+            handler.readAck(new Reliability.ACK(21));
+            assertEquals(0, next.refCnt());
+            for (int sequence = 30; sequence < 62; sequence++) {
+                final FrameSet prompt = handler.pending(sequence);
+                age(prompt, 1);
+                handler.readAck(new Reliability.ACK(sequence));
+            }
+            final FrameSet lost = handler.pending(70);
+            age(lost, 3000);
+            handler.recallExpiredFrameSets();
+            assertFalse(handler.pendingFrameSets.containsKey(70));
+        } finally {
+            handler.clearQueue(null);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    /**
+     * Advances a fixture datagram's age without sleeping or changing the wall clock.
+     *
+     * @param frame owned fixture datagram
+     * @param milliseconds simulated elapsed time since transmission
+     * @throws ReflectiveOperationException if the timestamp fixture contract changes
+     */
+    private static void age(final FrameSet frame, final long milliseconds)
+            throws ReflectiveOperationException {
+        java.lang.reflect.Field field = FrameSet.class.getDeclaredField("sentTime");
+        field.setAccessible(true);
+        field.setLong(frame, System.nanoTime() - java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(milliseconds));
+    }
+
     /** Wrapped NACKs recall only their covered frame sets and respect disabled NACK handling. */
     @Test
     void negativeAcknowledgementsRecallCoveredFramesOnce() {
