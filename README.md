@@ -10,7 +10,7 @@ targeting unreliable and rate-limited client connections. It provides strict net
 style server and client channels. 
 
 This implementation uses [Netty](https://github.com/netty/netty) 
-channels to provide a fast and effective [RakNet](http://www.raknet.net) server, 
+channels to provide a fast and effective RakNet server,
 offering the full feature set of the transport protocol, while providing
 room for extension with any plugins or custom behavior. 
 
