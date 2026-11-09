@@ -284,6 +284,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         config.getMetrics().framesIn(frameSet.getNumPackets());
         frameSet.createFrames(ctx::fireChannelRead);
         trySendResponses(ctx);
+        FlushTickHandler.checkFlushTick(ctx.channel());
         ctx.fireChannelReadComplete();
     }
 

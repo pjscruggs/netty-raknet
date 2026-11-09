@@ -29,6 +29,8 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     protected long lastTickAccum = System.nanoTime();
     /** Owned fallback task that checks for due flushes every fifty milliseconds. */
     protected ScheduledFuture<?> flushTask;
+    /** Coalesced deadline for writes arriving before the next flush interval. */
+    private ScheduledFuture<?> pendingWriteFlush;
 
     /**
      * Requests elapsed-time accounting through the pipeline's internal user-event path.
@@ -48,7 +50,7 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     public void handlerAdded(final ChannelHandlerContext ctx) {
         assert flushTask == null;
         flushTask = ctx.channel().eventLoop().scheduleAtFixedRate(
-                () -> checkFlushTick(ctx.channel()),
+                () -> maybeFlush(ctx.channel()),
                 0, 50, TimeUnit.MILLISECONDS
         );
     }
@@ -62,6 +64,7 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     public void handlerRemoved(final ChannelHandlerContext ctx) {
         flushTask.cancel(false);
         flushTask = null;
+        cancelPendingWriteFlush();
     }
 
     /**
@@ -84,6 +87,7 @@ public class FlushTickHandler extends ChannelDuplexHandler {
     @Override
     public void userEventTriggered(final ChannelHandlerContext ctx, final Object evt) {
         if (evt == FLUSH_CHECK_SIGNAL) {
+            scheduleWriteFlush(ctx);
             maybeFlush(ctx.channel());
         } else {
             ctx.fireUserEventTriggered(evt);
@@ -97,12 +101,35 @@ public class FlushTickHandler extends ChannelDuplexHandler {
      */
     @Override
     public void flush(final ChannelHandlerContext ctx) {
+        cancelPendingWriteFlush();
         if (tickAccum >= TICK_RESOLUTION) {
             tickAccum -= TICK_RESOLUTION;
         } else {
             tickAccum = 0;
         }
         ctx.flush();
+    }
+
+    /**
+     * Schedules one deadline when a queued write arrives before flush credit is available.
+     * @param ctx event-loop context owning the queued write
+     */
+    private void scheduleWriteFlush(final ChannelHandlerContext ctx) {
+        final long delay = TICK_RESOLUTION - tickAccum - (System.nanoTime() - lastTickAccum);
+        if (delay > 0 && pendingWriteFlush == null && ctx.channel().isOpen()) {
+            pendingWriteFlush = ctx.executor().schedule(() -> {
+                pendingWriteFlush = null;
+                maybeFlush(ctx.channel());
+            }, delay, TimeUnit.NANOSECONDS);
+        }
+    }
+
+    /** Cancels a queued deadline once another flush or handler removal makes it unnecessary. */
+    private void cancelPendingWriteFlush() {
+        if (pendingWriteFlush != null) {
+            pendingWriteFlush.cancel(false);
+            pendingWriteFlush = null;
+        }
     }
 
     /**
