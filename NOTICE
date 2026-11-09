@@ -1,0 +1,9 @@
+netty-raknet maintained by pjscruggs
+
+This project derives from yesdog/netty-raknet (YCC Network, LLC), through
+the RelativityMC/netty-raknet fork maintained by ishland and contributors.
+Original history and the MIT license are preserved.
+
+The source-quality rules in quality/ are adapted from pjscruggs/raknetify2,
+licensed under MIT, Copyright (c) 2022-2025 ishland and
+Copyright (c) 2026 pjscruggs. See quality/LICENSE.
