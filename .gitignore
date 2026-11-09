@@ -25,3 +25,8 @@ out/
 # IntelliJ
 .idea/
 *.iml
+
+# Local Python checks and generated source analysis
+__pycache__/
+*.py[cod]
+/codeql-results/

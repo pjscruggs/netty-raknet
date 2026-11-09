@@ -1,0 +1,12 @@
+/** Wires the standalone source-policy build into transport verification. */
+tasks.register('qualityChecks') {
+    group = 'verification'
+    description = 'Check documentation, Java correctness, and the complexity limit of ten.'
+    dependsOn gradle.includedBuild('quality').task(':check')
+}
+
+subprojects {
+    plugins.withId('java') {
+        tasks.named('check') { dependsOn rootProject.tasks.named('qualityChecks') }
+    }
+}

@@ -1,0 +1,2 @@
+/** Identifies the standalone transport source-policy build. */
+rootProject.name = 'netty-raknet-quality'

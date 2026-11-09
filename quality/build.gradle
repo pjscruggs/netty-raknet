@@ -1,0 +1,58 @@
+/** Checks every tracked and newly added Java source against the maintained transport policy. */
+plugins {
+    id 'java'
+    id 'checkstyle'
+    id 'pmd'
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation 'com.puppycrawl.tools:checkstyle:14.4.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+
+/** Git excludes generated outputs while including new, not-yet-committed source files. */
+def ownedSources = providers.exec {
+    workingDir projectDir.parentFile
+    commandLine 'git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'
+}.standardOutput.asText.get().split('\u0000').findAll { it.endsWith('.java') }
+        .collect { new File(projectDir.parentFile, it) }.findAll { it.isFile() }
+
+checkstyle {
+    toolVersion = '14.4.0'
+    configFile = file('checkstyle.xml')
+    ignoreFailures = false
+    maxWarnings = 0
+}
+
+tasks.withType(Checkstyle).configureEach {
+    dependsOn 'classes'
+    checkstyleClasspath = configurations.checkstyle + sourceSets.main.output
+}
+
+tasks.register('checkJava', Checkstyle) {
+    source files(ownedSources)
+    classpath = files()
+    reports { xml.required = true; html.required = true }
+}
+
+pmd {
+    toolVersion = '7.29.0'
+    ruleSets = []
+    ruleSetFiles = files('pmd.xml')
+    ignoreFailures = false
+    consoleOutput = true
+}
+
+tasks.register('checkJavaPractices', Pmd) {
+    source files(ownedSources)
+    classpath = files(new File(System.getProperty('java.home'), 'lib/jrt-fs.jar'))
+    reports { xml.required = true; html.required = true }
+}
+
+test { useJUnitPlatform() }
+tasks.named('check') { dependsOn 'checkJava', 'checkJavaPractices' }

@@ -11,3 +11,5 @@ project(":netty-raknet-tests").projectDir = file('tests')
 project(":netty-raknet-common").projectDir = file('common')
 project(":netty-raknet-server").projectDir = file('server')
 project(":netty-raknet-client").projectDir = file('client')
+
+includeBuild('quality')

@@ -8,20 +8,31 @@ plugins {
 }
 
 repositories {
-    mavenLocal()
     maven {
         url = uri('https://repo.maven.apache.org/maven2/')
     }
 }
 
 dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.3'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 group = 'network.ycc'
 version = '0.8-SNAPSHOT'
 java.sourceCompatibility = JavaVersion.VERSION_1_8
+java.targetCompatibility = JavaVersion.VERSION_1_8
+
+// Keep the production API baseline independent from the JDK running Gradle.
+tasks.named('compileJava', JavaCompile) { options.release = 8 }
+
+// Select one coherent Netty test runtime while retaining the compile-only baseline.
+def nettyTestVersion = providers.gradleProperty('nettyTestVersion').orElse('4.1.140.Final')
+configurations.matching { it.name in ['testCompileClasspath', 'testRuntimeClasspath'] }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == 'io.netty') useVersion nettyTestVersion.get()
+    }
+}
 
 java {
     withSourcesJar()
@@ -47,4 +58,13 @@ tasks.withType(JavaCompile) {
 
 tasks.withType(Javadoc) {
     options.encoding = 'UTF-8'
+}
+
+// Include notices in binary, source, and documentation artifacts with reproducible ordering.
+tasks.withType(Jar).configureEach {
+    from(rootProject.file('LICENSE')) { into 'META-INF' }
+    from(rootProject.file('NOTICE')) { into 'META-INF' }
+    from(rootProject.file('quality/LICENSE')) { into 'META-INF/licenses'; rename { 'raknetify2-quality-LICENSE' } }
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }
