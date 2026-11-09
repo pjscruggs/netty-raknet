@@ -15,8 +15,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  query-tests:
+    name: CodeQL query regression tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: zulu
+          java-version: 25
+      - uses: github/codeql-action/setup-codeql@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        id: query-tools
+        with:
+          languages: java-kotlin
+      - name: Verify callback and ordinary-method analysis
+        env:
+          CODEQL_CLI: ${{ steps.query-tools.outputs.codeql-path }}
+        run: |
+          "$CODEQL_CLI" pack install quality/codeql
+          "$CODEQL_CLI" test run quality/codeql/tests --threads=2
+
   analyze:
     name: CodeQL (${{ matrix.language }})
+    needs: query-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -45,10 +69,12 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          queries: security-and-quality
+          queries: ${{ matrix.language == 'java-kotlin' && './quality/codeql/security-and-quality.qls' || 'security-and-quality' }}
       - name: Compile production and regression sources for analysis
         if: matrix.build-mode == 'manual'
-        run: ./gradlew classes testClasses --no-build-cache --rerun-tasks --no-daemon --max-workers=2 --warning-mode fail
+        # Resolve the declared API baseline consistently during source extraction.
+        # The build workflow separately exercises the maintained Netty runtime.
+        run: ./gradlew classes testClasses -PnettyTestVersion=4.1.25.Final --no-build-cache --rerun-tasks --no-daemon --max-workers=2 --warning-mode fail
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}

@@ -22,6 +22,11 @@ floating branch or copy the consumer's publication credentials into this repo.
 Raknetify2's full native compatibility CI must pass before merging a changed
 submodule pin there. Publishing the transport fork does not publish a mod.
 
+CodeQL extracts against the declared Netty API baseline and runs the full
+security-and-quality suite with Raknetify2's tested callback-aware unused
+parameter query. Default interface callbacks preserve their extension signature;
+ordinary unused parameters still fail. Query regression tests verify both cases.
+
 ## Licensing
 
 Contributions are MIT licensed. Retain existing copyright and license notices;
