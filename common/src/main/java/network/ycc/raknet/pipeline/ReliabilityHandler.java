@@ -39,6 +39,10 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     private static final long MAX_RETRY_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
     /** Retry grace learned from ACK arrival independently of ping responses. */
     private long acknowledgementTimeout;
+    /** Smoothed receipt round trip, separate from the transport ping estimate. */
+    private long acknowledgementMean;
+    /** Smoothed absolute variation in receipt round trips. */
+    private long acknowledgementVariation;
 
     /** Missing received datagram counters awaiting a negative acknowledgement when that feature is enabled. */
     protected final IntSortedSet nackSet = new IntRBTreeSet(UINT.B3.COMPARATOR);
@@ -488,10 +492,28 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
      * @param frameSet outstanding datagram covered by this acknowledgement
      */
     private void acknowledgeTiming(final FrameSet frameSet) {
-        long elapsed = Math.max(1, System.nanoTime() - frameSet.getSentTime());
-        long observed = Math.min(MAX_RETRY_NANOS, elapsed) * 2;
+        long elapsed = Math.min(MAX_RETRY_NANOS, Math.max(1, System.nanoTime() - frameSet.getSentTime()));
+        long observed = receiptEstimate(elapsed);
         acknowledgementTimeout = Math.min(MAX_RETRY_NANOS,
                 Math.max(observed, acknowledgementTimeout - acknowledgementTimeout / 8));
+    }
+
+    /**
+     * Updates receipt delay and variation while retaining grace for the latest sample.
+     * @param elapsed acknowledged datagram round trip in nanoseconds
+     * @return retry estimate including observed variation and configured grace
+     */
+    private long receiptEstimate(final long elapsed) {
+        if (acknowledgementMean == 0) {
+            acknowledgementMean = elapsed;
+            acknowledgementVariation = elapsed / 2;
+        } else {
+            long difference = Math.abs(acknowledgementMean - elapsed);
+            acknowledgementVariation += (difference - acknowledgementVariation) / 4;
+            acknowledgementMean += (elapsed - acknowledgementMean) / 8;
+        }
+        long grace = Math.min(MAX_RETRY_NANOS, Math.max(FlushTickHandler.TICK_RESOLUTION, config.getRetryDelayNanos()));
+        return Math.max(elapsed + grace, acknowledgementMean + Math.max(grace, 4 * acknowledgementVariation));
     }
 
     /**
