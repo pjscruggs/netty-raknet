@@ -108,7 +108,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: pjscruggs/raknetify2
-          ref: 5299ada2da82d7264e49a5f54c48c7eee7365ce5
+          ref: 1c41fb6fc226b96842bc7ff092f66118748b38bd
           fetch-depth: 0
           persist-credentials: false
       - name: Substitute the exact candidate transport revision
