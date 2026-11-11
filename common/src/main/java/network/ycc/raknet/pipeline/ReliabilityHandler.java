@@ -49,7 +49,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     /** Received datagram counters awaiting acknowledgement, ordered by circular counter distance. */
     protected final IntSortedSet ackSet = new IntRBTreeSet(UINT.B3.COMPARATOR);
     /** Owned unsent or recalled frame references waiting for packet production. */
-    protected final Queue<Frame> frameQueue = new PriorityQueue<>(Frame.COMPARATOR);
+    protected Queue<Frame> frameQueue = new PriorityQueue<>(Frame.COMPARATOR);
     /** Owned transmitted frame sets awaiting acknowledgement, kept in send-time insertion order for expiry scans. */
     protected final Int2ObjectLinkedOpenHashMap<FrameSet> pendingFrameSets = new Int2ObjectLinkedOpenHashMap<>();
 
@@ -68,6 +68,23 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     protected RakNet.Config config; //TODO: not really needed anymore
     /** Installed context used by deferred frame production after acknowledgement callbacks. */
     protected ChannelHandlerContext ctx;
+
+    /**
+     * Selects the connection's send scheduling policy on its event loop. Already queued frames
+     * retain their references, promises and byte reservations. The existing queue remains valid
+     * if constructing the replacement fails.
+     *
+     * @param comparator ordering applied to pending and future frames
+     * @throws IllegalStateException if called outside an installed handler's event loop
+     */
+    public final void setFrameComparator(final java.util.Comparator<Frame> comparator) {
+        if (ctx != null && !ctx.executor().inEventLoop()) {
+            throw new IllegalStateException("Frame scheduling belongs to the transport event loop");
+        }
+        final Queue<Frame> replacement = new PriorityQueue<>(java.util.Objects.requireNonNull(comparator));
+        replacement.addAll(frameQueue);
+        frameQueue = replacement;
+    }
 
     /**
      * Reads the next datagram sequence on the owning event loop without exposing mutable scheduler state.

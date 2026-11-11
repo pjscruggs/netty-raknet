@@ -20,6 +20,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Checks typed reset operations against actual scheduler ownership and wrapped ordering cursors. */
 class SynchronizationOperationsTest {
+    /** Replacing a live scheduling policy preserves the queued frames, ownership and reservations. */
+    @Test
+    void changingComparatorReordersExistingAndFutureFrames() {
+        final EmbeddedChannel channel = new EmbeddedChannel();
+        final ReliabilityHandler handler = new ReliabilityHandler();
+        handler.config = new DefaultConfig(channel);
+        final Frame first = frame(channel);
+        final Frame second = frame(channel);
+        final Frame newest = frame(channel);
+        handler.queueFrame(first);
+        handler.queueFrame(second);
+        final int bytes = handler.queuedBytes;
+        try {
+            final List<Frame> order = List.of(newest, second, first);
+            handler.setFrameComparator(java.util.Comparator.comparingInt(order::indexOf));
+            assertEquals(bytes, handler.queuedBytes);
+            assertEquals(second, handler.frameQueue.peek());
+            handler.queueFrame(newest);
+            assertEquals(newest, handler.frameQueue.peek());
+            assertEquals(1, first.refCnt());
+        } finally {
+            handler.clearQueue(new IllegalStateException("Fixture finished"));
+            channel.finishAndReleaseAll();
+        }
+    }
+
     /** Detached unsent and outstanding frames remain owned exactly once and restore byte accounting and promises. */
     @Test
     void detachingAndRestoringFramesBalancesOwnership() {
