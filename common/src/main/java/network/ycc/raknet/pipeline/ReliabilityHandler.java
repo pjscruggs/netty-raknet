@@ -56,6 +56,12 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     /** Conservative total byte cost of frames waiting in frameQueue, excluding outstanding frame sets. */
     protected int queuedBytes;
 
+    /** Reliable FIFO channel excluded from application write watermarks, or minus one. */
+    private int backgroundOrderChannel = -1;
+
+    /** Unsent background bytes still charged to the connection's hard queue limit. */
+    private int backgroundQueuedBytes;
+
     /** Newest received datagram sequence used to identify gaps with twenty-four-bit circular comparison. */
     protected int lastReceivedSeqId;
     /** Next twenty-four-bit sequence assigned to a newly produced outgoing frame set. */
@@ -84,6 +90,43 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         final Queue<Frame> replacement = new PriorityQueue<>(java.util.Objects.requireNonNull(comparator));
         replacement.addAll(frameQueue);
         frameQueue = replacement;
+    }
+
+    /**
+     * Keeps the selected background channel from changing gameplay writability. All frames still
+     * use the same hard memory budget and datagram transmission window.
+     *
+     * @param orderChannel reliable FIFO channel to exclude, or minus one to count all frames
+     * @throws IllegalStateException if called outside an installed handler's event loop
+     * @throws IllegalArgumentException if the channel is neither minus one nor an unsigned byte
+     */
+    public final void setBackgroundOrderChannel(final int orderChannel) {
+        if (ctx != null && !ctx.executor().inEventLoop()) {
+            throw new IllegalStateException("Frame scheduling belongs to the transport event loop");
+        }
+        if (orderChannel < -1 || orderChannel > 255) {
+            throw new IllegalArgumentException("Invalid background ordering channel");
+        }
+        backgroundOrderChannel = orderChannel;
+        backgroundQueuedBytes = 0;
+        for (Frame frame : frameQueue) {
+            if (isBackground(frame)) {
+                backgroundQueuedBytes += frame.getDataSize() + Frame.HEADER_SIZE;
+            }
+        }
+    }
+
+    /**
+     * Checks the reliable FIFO channel used by an enqueued frame or fragment.
+     *
+     * @param frame outgoing frame
+     * @return true if the frame should count only against the hard limit
+     */
+    private boolean isBackground(final Frame frame) {
+        return frame.getOrderChannel() == backgroundOrderChannel
+                && frame.getReliability().isReliable
+                && frame.getReliability().isOrdered
+                && !frame.getReliability().isSequenced;
     }
 
     /**
@@ -127,6 +170,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
         pendingFrameSets.clear();
         queuedBytes = 0;
+        backgroundQueuedBytes = 0;
         config.getMetrics().currentQueuedBytes(0);
         return frames;
     }
@@ -279,6 +323,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         frameQueue.forEach(Frame::release);
         frameQueue.clear();
         this.queuedBytes = 0;
+        backgroundQueuedBytes = 0;
         pendingFrameSets.values().forEach(FrameSet::release);
         pendingFrameSets.clear();
     }
@@ -395,6 +440,9 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
         }
         frameQueue.add(frame);
         this.queuedBytes += (int) roughPacketSize;
+        if (isBackground(frame)) {
+            backgroundQueuedBytes += (int) roughPacketSize;
+        }
         config.getMetrics().currentQueuedBytes(this.queuedBytes);
     }
 
@@ -559,6 +607,9 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             }
             frameQueue.poll();
             this.queuedBytes -= roughPacketSize;
+            if (isBackground(frame)) {
+                backgroundQueuedBytes -= roughPacketSize;
+            }
             frameSet.addPacket(frame);
         }
         if (!frameSet.isEmpty()) {
@@ -643,7 +694,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Applies high and low watermarks to unsent bytes and closes the connection if its hard queue limit is exceeded.
+     * Applies high and low watermarks to foreground bytes and enforces the shared hard queue limit.
      * On a hard-limit failure, queued write promises are failed before all retained frames are released.
      *
      * @param ctx connection whose writable attribute and lifecycle are updated
@@ -651,6 +702,7 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
      */
     protected void updateBackPressure(final ChannelHandlerContext ctx) {
         final int queuedBytes = getQueuedBytes();
+        final int foregroundQueuedBytes = queuedBytes - backgroundQueuedBytes;
         final boolean oldWritable = ctx.channel().attr(RakNet.WRITABLE).get();
         boolean newWritable = oldWritable;
         if (queuedBytes > config.getMaxQueuedBytes()) {
@@ -658,9 +710,9 @@ public class ReliabilityHandler extends ChannelDuplexHandler {
             clearQueue(t);
             ctx.close();
             throw t;
-        } else if (queuedBytes > config.getWriteBufferHighWaterMark()) {
+        } else if (foregroundQueuedBytes > config.getWriteBufferHighWaterMark()) {
             newWritable = false;
-        } else if (queuedBytes < config.getWriteBufferLowWaterMark()) {
+        } else if (foregroundQueuedBytes < config.getWriteBufferLowWaterMark()) {
             newWritable = true;
         }
         if (newWritable != oldWritable) {

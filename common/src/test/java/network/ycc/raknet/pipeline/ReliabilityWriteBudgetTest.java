@@ -4,10 +4,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.TooLongFrameException;
 import network.ycc.raknet.frame.Frame;
 import network.ycc.raknet.frame.FrameData;
+import network.ycc.raknet.RakNet;
 import network.ycc.raknet.packet.FrameSet;
 import org.junit.jupiter.api.Test;
 
@@ -87,6 +89,43 @@ class ReliabilityWriteBudgetTest {
         }
     }
 
+    /** Only foreground bytes change writability, while every frame consumes the hard budget. */
+    @Test
+    void backgroundDoesNotSetTheGameplayWatermark() {
+        final ReliabilityHandler handler = new ReliabilityHandler();
+        final RakNetEmbeddedChannel channel = new RakNetEmbeddedChannel(handler);
+        channel.config().setWriteBufferWaterMark(new WriteBufferWaterMark(40, 80));
+        channel.config().setMaxQueuedBytes(512);
+        handler.setBackgroundOrderChannel(6);
+        try {
+            channel.write(frame(256, 6));
+            handler.updateBackPressure(channel.pipeline().context(handler));
+            assertTrue(channel.attr(RakNet.WRITABLE).get());
+            assertEquals(281, handler.getQueuedBytes());
+
+            channel.write(frame(60, 7));
+            handler.updateBackPressure(channel.pipeline().context(handler));
+            assertFalse(channel.attr(RakNet.WRITABLE).get());
+            for (Frame pending : handler.takePendingFrames()) {
+                if (pending.getOrderChannel() == 6) {
+                    handler.restorePendingFrame(pending);
+                } else {
+                    pending.getPromise().setSuccess();
+                    pending.release();
+                }
+            }
+            handler.updateBackPressure(channel.pipeline().context(handler));
+            assertTrue(channel.attr(RakNet.WRITABLE).get());
+            assertEquals(281, handler.getQueuedBytes());
+
+            final ChannelFuture rejected = channel.write(frame(256, 6));
+            assertTrue(rejected.cause() instanceof TooLongFrameException);
+            assertEquals(281, handler.getQueuedBytes());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     /**
      * Creates an ordered packet with a selected payload size and one caller-owned frame reference.
      *
@@ -94,9 +133,21 @@ class ReliabilityWriteBudgetTest {
      * @return frame to transfer into an outbound queue or outstanding frame set
      */
     private static Frame frame(final int size) {
+        return frame(size, 0);
+    }
+
+    /**
+     * Creates a FIFO packet on the selected ordering channel.
+     *
+     * @param size application bytes excluding the packet identifier
+     * @param orderChannel transport channel
+     * @return caller-owned frame
+     */
+    private static Frame frame(final int size, final int orderChannel) {
         final ByteBuf bytes = Unpooled.buffer(size).writeZero(size);
         final FrameData data = FrameData.create(bytes.alloc(), 0xfd, bytes);
         try {
+            data.setOrderChannel(orderChannel);
             return Frame.createOrdered(data, 0, 0);
         } finally {
             data.release();
